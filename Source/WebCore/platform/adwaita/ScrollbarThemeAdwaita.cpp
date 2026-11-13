@@ -64,6 +64,12 @@ bool ScrollbarThemeAdwaita::usesOverlayScrollbars() const
 #endif
 #if PLATFORM(GTK) || PLATFORM(WPE)
     return SystemSettings::singleton().overlayScrolling().value_or(true);
+#elif PLATFORM(RITTEROS)
+    // Classic scroll bars: without accelerated compositing an overlay scroll
+    // bar is painted above everything in its stacking context, so the bars
+    // of scrollers hidden behind other content (Gmail's panels) showed
+    // through. Classic ones take their own room and paint in order.
+    return false;
 #else
     return true;
 #endif
