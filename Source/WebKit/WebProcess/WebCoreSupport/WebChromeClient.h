@@ -276,7 +276,7 @@ private:
     void AXFinishFrameLoad() final { }
 #endif
 
-#if PLATFORM(PLAYSTATION)
+#if PLATFORM(PLAYSTATION) || PLATFORM(RITTEROS)
     void postAccessibilityNotification(WebCore::AccessibilityObject&, WebCore::AXNotification) final;
     void postAccessibilityNodeTextChangeNotification(WebCore::AccessibilityObject*, WebCore::AXTextChange, unsigned, const String&) final;
     void postAccessibilityFrameLoadingEventNotification(WebCore::AccessibilityObject*, WebCore::AXLoadingEvent) final;

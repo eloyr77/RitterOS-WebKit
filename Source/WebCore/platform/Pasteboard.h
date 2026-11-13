@@ -109,7 +109,7 @@ struct PasteboardWebContent {
     bool canSmartCopyOrDelete;
     String text;
     String markup;
-#elif USE(LIBWPE)
+#elif USE(LIBWPE) || PLATFORM(RITTEROS)
     String text;
     String markup;
 #endif

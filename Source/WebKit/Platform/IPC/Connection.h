@@ -930,7 +930,7 @@ private:
     Vector<int> m_fileDescriptors;
     UnixFileDescriptor m_socketDescriptor;
 #endif
-#if PLATFORM(PLAYSTATION)
+#if PLATFORM(PLAYSTATION) || PLATFORM(RITTEROS)
     RefPtr<WTF::Thread> m_socketMonitor;
 #endif
 #elif OS(DARWIN)

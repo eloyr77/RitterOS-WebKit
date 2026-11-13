@@ -97,6 +97,14 @@ static UnixFileDescriptor createSharedMemory()
     }
 #endif
 
+#if OS(RITTEROS)
+    // RitterOS (43b-3): memory files from memfd_create, passed to other programs with SCM_RIGHTS.
+    do {
+        fileDescriptor = memfd_create("WebKitSharedMemory", MFD_CLOEXEC);
+    } while (fileDescriptor == -1 && errno == EINTR);
+    return UnixFileDescriptor { fileDescriptor, UnixFileDescriptor::Adopt };
+#endif
+
 #if HAVE(SHM_ANON)
     do {
         fileDescriptor = shm_open(SHM_ANON, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);

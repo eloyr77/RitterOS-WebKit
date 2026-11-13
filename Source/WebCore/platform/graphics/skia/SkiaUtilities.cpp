@@ -28,35 +28,42 @@
 
 #if USE(SKIA)
 
-#include "BitmapTexture.h"
 #include "ColorSpaceSkia.h"
-#include "GLContext.h"
-#include "GLFence.h"
 #include "GraphicsTypes.h"
 #include "NotImplemented.h"
+#if USE(SKIA_GPU)
+#include "BitmapTexture.h"
+#include "GLContext.h"
+#include "GLFence.h"
 #include "PlatformDisplay.h"
+#endif
 WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_BEGIN
 #include <skia/core/SkBitmap.h>
+#if USE(SKIA_GPU)
 #include <skia/gpu/ganesh/SkImageGanesh.h>
 #include <skia/gpu/ganesh/SkSurfaceGanesh.h>
 #include <skia/gpu/ganesh/gl/GrGLBackendSurface.h>
 #include <skia/private/chromium/GrPromiseImageTexture.h>
 #include <skia/private/chromium/SkImageChromium.h>
+#endif
 WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_END
 #include <wtf/RunLoop.h>
 #include <wtf/TZoneMallocInlines.h>
 #include <wtf/ThreadSafeWeakPtr.h>
 
+#if USE(SKIA_GPU)
 #if USE(LIBEPOXY)
 #include <epoxy/gl.h>
 #else
 #include <GLES3/gl3.h>
 #include <GLES2/gl2ext.h>
 #endif
+#endif
 
 namespace WebCore {
 namespace SkiaUtilities {
 
+#if USE(SKIA_GPU)
 GrBackendTexture createBackendTexture(const BitmapTexture& texture)
 {
     RELEASE_ASSERT(texture.id());
@@ -105,6 +112,8 @@ static std::unique_ptr<GLFence> flushAndSubmitImageWithFence(GrDirectContext* gr
     grContext->flush(image);
     return createFenceAfterFlush(grContext);
 }
+
+#endif // USE(SKIA_GPU)
 
 SkBlendMode toSkiaBlendMode(BlendMode blendMode, std::optional<CompositeOperator> operation)
 {
@@ -182,6 +191,7 @@ SkBlendMode toSkiaBlendMode(BlendMode blendMode, std::optional<CompositeOperator
     return SkBlendMode::kSrcOver;
 }
 
+#if USE(SKIA_GPU)
 class PromiseImageContext {
     WTF_MAKE_TZONE_ALLOCATED_INLINE(PromiseImageContext);
 public:
@@ -265,6 +275,13 @@ sk_sp<SkImage> createPromiseImageIfNeeded(const sk_sp<SkImage>& image, const sk_
             std::unique_ptr<PromiseImageContext> context(static_cast<PromiseImageContext*>(userData));
         }, context.release());
 }
+#else
+// (RitterOS: CPU drawing only, no image is texture-backed)
+sk_sp<SkImage> createPromiseImageIfNeeded(const sk_sp<SkImage>& image, const sk_sp<GrContextThreadSafeProxy>&)
+{
+    return image;
+}
+#endif // USE(SKIA_GPU)
 
 sk_sp<SkImage> scaleImagePixels(const sk_sp<SkImage>& image, const IntSize& scaledSize)
 {

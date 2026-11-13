@@ -2394,7 +2394,7 @@ void WebChromeClient::setMockWebAuthenticationConfiguration(const MockWebAuthent
 }
 #endif
 
-#if PLATFORM(PLAYSTATION)
+#if PLATFORM(PLAYSTATION) || PLATFORM(RITTEROS)
 void WebChromeClient::postAccessibilityNotification(WebCore::AccessibilityObject&, WebCore::AXNotification)
 {
     notImplemented();

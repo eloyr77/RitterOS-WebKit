@@ -25,7 +25,7 @@
 #include <wtf/TZoneMalloc.h>
 #include <wtf/ThreadSafeWeakPtr.h>
 
-#if !PLATFORM(GTK) && !PLATFORM(WPE)
+#if !PLATFORM(GTK) && !PLATFORM(WPE) && !PLATFORM(RITTEROS)
 #include <EGL/eglplatform.h>
 typedef EGLNativeWindowType GLNativeWindowType;
 #else

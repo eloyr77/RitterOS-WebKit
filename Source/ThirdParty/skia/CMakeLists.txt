@@ -857,6 +857,11 @@ endif ()
 if (USE_LIBEPOXY)
     target_sources(Skia PRIVATE src/gpu/ganesh/gl/epoxy/GrGLMakeEpoxyEGLInterface.cpp)
     target_link_libraries(Skia PRIVATE Epoxy::Epoxy)
+elseif (PORT STREQUAL "RitterOS")
+    # No GL at all: Ganesh's GL backend (src/gpu/ganesh/gl/*.cpp, which include only
+    # Skia's own GL headers) stays compiled, but GrGLMakeNativeInterface() returns
+    # nullptr and nothing includes <EGL/egl.h> or links an EGL/GLES library.
+    target_sources(Skia PRIVATE src/gpu/ganesh/gl/GrGLMakeNativeInterface_none.cpp)
 else ()
     target_sources(Skia PRIVATE src/gpu/ganesh/gl/egl/GrGLMakeNativeInterface_egl.cpp)
     target_sources(Skia PRIVATE src/gpu/ganesh/gl/egl/GrGLMakeEGLInterface.cpp)

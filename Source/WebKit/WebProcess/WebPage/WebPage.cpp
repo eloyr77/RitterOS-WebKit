@@ -5754,7 +5754,7 @@ void WebPage::updateSettings(const WebPreferencesStore& store, Settings& setting
 {
     updateSettingsGenerated(store, settings);
 
-#if !PLATFORM(GTK) && !PLATFORM(WIN) && !PLATFORM(PLAYSTATION) && !PLATFORM(WPE)
+#if !PLATFORM(GTK) && !PLATFORM(WIN) && !PLATFORM(PLAYSTATION) && !PLATFORM(WPE) && !PLATFORM(RITTEROS)
     if (!settings.acceleratedCompositingEnabled()) {
         RELEASE_LOG(Layers, "updateSettings: acceleratedCompositingEnabled setting was false. WebKit cannot function in this mode; changing setting to true");
         settings.setAcceleratedCompositingEnabled(true);

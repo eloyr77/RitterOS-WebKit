@@ -114,7 +114,7 @@ void Connection::platformInvalidate()
     if (!m_isConnected)
         return;
 
-#if PLATFORM(PLAYSTATION)
+#if PLATFORM(PLAYSTATION) || PLATFORM(RITTEROS)
     if (m_socketMonitor) {
         m_socketMonitor->detach();
         m_socketMonitor = nullptr;
@@ -335,7 +335,7 @@ void Connection::platformOpen()
     RefPtr<Connection> protectedThis(this);
     m_isConnected = true;
 
-#if PLATFORM(PLAYSTATION)
+#if PLATFORM(PLAYSTATION) || PLATFORM(RITTEROS)
     m_socketMonitor = Thread::create("SocketMonitor"_s, [protectedThis] {
         {
             int fd;

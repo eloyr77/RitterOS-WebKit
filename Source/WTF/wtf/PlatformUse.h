@@ -83,6 +83,12 @@
 #define USE_SOUP 1
 #endif
 
+/* USE(SKIA_GPU): Skia drawing through a GL context (Ganesh). Every Skia port
+   has one except RitterOS, which draws on the CPU only. */
+#if USE(SKIA) && !PLATFORM(RITTEROS) && !defined(USE_SKIA_GPU)
+#define USE_SKIA_GPU 1
+#endif
+
 #if USE(COORDINATED_GRAPHICS) && USE(THEME_ADWAITA) && USE(SKIA)
 #define USE_COORDINATED_GRAPHICS_ASYNC_SCROLLBAR 1
 #endif
