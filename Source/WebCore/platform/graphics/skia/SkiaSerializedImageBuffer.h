@@ -53,7 +53,9 @@ private:
     ImageBufferFormat m_bufferFormat;
     RefPtr<NativeImage> m_image;
     ThreadSafeWeakPtr<RunLoop> m_runLoop;
+#if USE(SKIA_GPU)
     std::unique_ptr<GLFence> m_fence;
+#endif
     size_t m_memoryCost { 0 };
 };
 

@@ -51,6 +51,10 @@
 #include "LayerTreeHostPlayStation.h"
 #endif
 
+#if PLATFORM(RITTEROS)
+#include "LayerTreeHostNull.h"
+#endif
+
 #if USE(GLIB_EVENT_LOOP)
 #include <wtf/glib/RunLoopSourcePriority.h>
 #endif

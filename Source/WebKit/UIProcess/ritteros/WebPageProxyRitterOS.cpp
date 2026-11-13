@@ -43,11 +43,6 @@ void WebPageProxy::platformInitialize()
     notImplemented();
 }
 
-struct wpe_view_backend* WebPageProxy::viewBackend()
-{
-    return nullptr;
-}
-
 String WebPageProxy::userAgentForURL(const URL&)
 {
     return userAgent();

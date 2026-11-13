@@ -40,6 +40,8 @@
 #include <WebKit/WKBaseWin.h>
 #elif defined(__SCE__)
 #include <WebKit/WKBasePlayStation.h>
+#elif defined(__ritteros__)
+#include <WebKit/WKBaseRitterOS.h>
 #endif
 
 /* WebKit2 shared types */

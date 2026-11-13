@@ -58,7 +58,7 @@ header: <WebCore/Pasteboard.h>
     String text;
     String markup;
 #endif
-#if USE(LIBWPE) && !PLATFORM(WPE)
+#if (USE(LIBWPE) && !PLATFORM(WPE)) || PLATFORM(RITTEROS)
     String text;
     String markup;
 #endif

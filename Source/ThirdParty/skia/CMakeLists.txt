@@ -862,6 +862,8 @@ elseif (PORT STREQUAL "RitterOS")
     # Skia's own GL headers) stays compiled, but GrGLMakeNativeInterface() returns
     # nullptr and nothing includes <EGL/egl.h> or links an EGL/GLES library.
     target_sources(Skia PRIVATE src/gpu/ganesh/gl/GrGLMakeNativeInterface_none.cpp)
+    # (SkFeatures.h knows no RitterOS and would take it for a Mac)
+    target_compile_definitions(Skia PUBLIC SK_BUILD_FOR_UNIX)
 else ()
     target_sources(Skia PRIVATE src/gpu/ganesh/gl/egl/GrGLMakeNativeInterface_egl.cpp)
     target_sources(Skia PRIVATE src/gpu/ganesh/gl/egl/GrGLMakeEGLInterface.cpp)

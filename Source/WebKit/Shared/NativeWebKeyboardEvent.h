@@ -88,6 +88,9 @@ public:
     static Ref<NativeWebKeyboardEvent> create(WPEEvent*, const String&, bool isAutoRepeat);
     static Ref<NativeWebKeyboardEvent> create(const String&, std::optional<Vector<WebCore::CompositionUnderline>>&&, std::optional<EditingRange>&&);
 #endif
+#elif PLATFORM(RITTEROS)
+    // RitterOS: the view (UIProcess/API/C/ritteros/WKView.cpp) fills the event in itself.
+    static Ref<NativeWebKeyboardEvent> create(WebKeyboardEventInit&& init) { return adoptRef(*new NativeWebKeyboardEvent(WTF::move(init))); }
 #elif PLATFORM(PLAYSTATION)
     enum class HandledByInputMethod : bool { No, Yes };
     static Ref<NativeWebKeyboardEvent> create(struct wpe_input_keyboard_event*, const String&, bool isAutoRepeat, HandledByInputMethod, std::optional<Vector<WebCore::CompositionUnderline>>&&, std::optional<EditingRange>&&);

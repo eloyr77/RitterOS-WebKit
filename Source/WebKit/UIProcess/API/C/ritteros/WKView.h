@@ -1,53 +1,83 @@
 /*
- * DRAFT: Source/WebKit/UIProcess/API/C/ritteros/WKView.h
+ * Copyright (C) 2026 Compass, the web browser for RitterOS.
  *
- * The RitterOS embedding API: the cross-platform WebKit C API (WKContext, WKPage,
- * WKPageConfiguration, WKPreferences, WKURL, WKString, navigation clients) plus this view.
- * Modeled on UIProcess/API/C/playstation/WKView.h (view lifecycle, view client),
- * UIProcess/API/C/playstation/WKPagePrivatePlayStation.h (input + WKPagePaint) and
- * UIProcess/API/C/win/WKView.h. WKViewRef is declared in Shared/API/c/ritteros/WKBaseRitterOS.h,
- * included from WKBase.h under defined(__ritteros__) (patch WK7).
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS BE LIABLE
+ * FOR ANY DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE.
  */
+
+// RitterOS's web view (the C API): a page drawn into the embedder's pixels,
+// fed with its input. With WKContext, WKPage and WKPreferences (WebKit's C
+// API) it is all an embedder (Compass) uses. Call it on the main thread
+// (WKRunLoop.h).
 
 #pragma once
 
 #include <WebKit/WKBase.h>
-#include <WebKit/WKEventRitterOS.h>   /* WKKeyboardEvent, WKMouseEvent, WKWheelEvent (copy of WKEventPlayStation.h) */
 #include <WebKit/WKGeometry.h>
-#include <WebKit/WKViewClient.h>      /* setViewNeedsDisplay, setCursor, ... (copy of playstation/WKViewClient.h) */
+#include <WebKit/WKViewClient.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Creates the view, its WebPageProxy and its PageClientImpl, and starts the web process. */
-WK_EXPORT WKViewRef WKViewCreate(WKPageConfigurationRef configuration);
-WK_EXPORT WKPageRef WKViewGetPage(WKViewRef view);
-WK_EXPORT void WKViewSetViewClient(WKViewRef view, const WKViewClientBase* client);
+WK_EXPORT WKViewRef WKViewCreate(WKPageConfigurationRef);
+WK_EXPORT void WKViewSetViewClient(WKViewRef, const WKViewClientBase*);
+WK_EXPORT WKPageRef WKViewGetPage(WKViewRef);
 
-/* Size in CSS pixels; scale is the framebuffer's device scale factor (1 for now).
-   Calls DrawingAreaProxy::setSize() (PlayStation's WKViewSetSize forgets to). */
-WK_EXPORT void WKViewSetSize(WKViewRef view, WKSize viewSize);
-WK_EXPORT void WKViewSetDeviceScaleFactor(WKViewRef view, float scale);
+WK_EXPORT void WKViewSetSize(WKViewRef, WKSize);
+WK_EXPORT void WKViewSetFocus(WKViewRef, bool);
+WK_EXPORT void WKViewSetActive(WKViewRef, bool);
+WK_EXPORT void WKViewSetVisible(WKViewRef, bool);
 
-WK_EXPORT void WKViewSetFocus(WKViewRef view, bool focused);
-WK_EXPORT void WKViewSetActive(WKViewRef view, bool active);
-WK_EXPORT void WKViewSetVisible(WKViewRef view, bool visible);
+// Draw the view's rect into pixels (32 bits each, 0xAARRGGBB, `stride`
+// pixels a row) that are the view's from (0, 0), surfaceSize big.
+WK_EXPORT void WKViewPaint(WKViewRef, uint32_t* pixels, WKSize surfaceSize, unsigned stride, WKRect);
 
-/* Input, in view coordinates. Call on the main thread (WKRunLoopCallOnMainThread). */
-WK_EXPORT void WKViewHandleKeyboardEvent(WKViewRef view, WKKeyboardEvent event);
-WK_EXPORT void WKViewHandleMouseEvent(WKViewRef view, WKMouseEvent event);
-WK_EXPORT void WKViewHandleWheelEvent(WKViewRef view, WKWheelEvent event);
+// Modifiers (as the embedder tracks them).
+enum {
+    kWKViewModifierShift = 1 << 0,
+    kWKViewModifierControl = 1 << 1,
+    kWKViewModifierAlt = 1 << 2,
+    kWKViewModifierMeta = 1 << 3,
+};
 
-/* Copies the web page's backing store into a 32-bit premultiplied BGRA framebuffer
-   (little-endian 0xAARRGGBB words, Skia's N32 with SK_R32_SHIFT=16), clipped to dirtyRect.
-   Parts the backing store does not cover are filled with the page background.
-   Typically called from the client's setViewNeedsDisplay callback. */
-WK_EXPORT void WKViewPaint(WKViewRef view, uint32_t* pixels, WKSize framebufferSize, size_t bytesPerRow, WKRect dirtyRect);
+enum {
+    kWKViewMouseMove = 0,
+    kWKViewMouseDown = 1,
+    kWKViewMouseUp = 2,
+};
+enum {
+    kWKViewMouseButtonNone = 0,
+    kWKViewMouseButtonLeft = 1,
+    kWKViewMouseButtonMiddle = 2,
+    kWKViewMouseButtonRight = 3,
+};
+// `buttons`: those held, 1 left, 2 right, 4 middle (the DOM's bits).
+WK_EXPORT void WKViewSendMouseEvent(WKViewRef, int type, int button, unsigned buttons, int x, int y, int clickCount, unsigned modifiers);
 
-/* Keep the UI-process backing store instead of dropping it 10 s after the last paint
-   (DrawingAreaProxyCoordinatedGraphics.cpp:313-324); default true for a framebuffer embedder. */
-WK_EXPORT void WKViewSetKeepsBackingStore(WKViewRef view, bool keep);
+// The wheel: steps (positive down and right), at (x, y).
+WK_EXPORT void WKViewSendWheelEvent(WKViewRef, int x, int y, double stepsX, double stepsY, unsigned modifiers);
+
+enum {
+    kWKViewKeyDown = 0,
+    kWKViewKeyUp = 1,
+};
+// A physical key: `usage` is its USB HID usage ID (RitterOS's WKEY_*); `text`
+// (UTF-8, or null) what the key typed, for a key-down. A character typed with
+// no key (a repeat) is a key-down with usage 0 and its text.
+WK_EXPORT void WKViewSendKeyEvent(WKViewRef, int type, unsigned usage, const char* text, unsigned modifiers, bool isAutoRepeat);
 
 #ifdef __cplusplus
 }

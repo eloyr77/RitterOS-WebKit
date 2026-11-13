@@ -36,7 +36,6 @@ namespace WebKit {
 
 void WebProcessPool::platformInitialize(NeedsGlobalStaticInitialization)
 {
-    m_userId = m_configuration->userId();
 }
 
 void WebProcessPool::platformInitializeNetworkProcess(NetworkProcessCreationParameters&)

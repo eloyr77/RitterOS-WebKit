@@ -46,9 +46,15 @@
 #include <wtf/text/MakeString.h>
 
 #if USE(SKIA)
+#if USE(SKIA_GPU)
 #include "GLContext.h"
+#endif
+#if USE(SKIA_GPU)
 #include "ImageBufferSkiaAcceleratedBackend.h"
+#endif
+#if USE(SKIA_GPU)
 #include "PlatformDisplay.h"
+#endif
 #include "SkiaSerializedImageBuffer.h"
 
 WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_BEGIN
@@ -99,7 +105,7 @@ RefPtr<ImageBuffer> ImageBuffer::create(const FloatSize& size, RenderingMode ren
             if (auto imageBuffer = ImageBuffer::create<ImageBufferIOSurfaceBackend>(size, resolutionScale, colorSpace, pixelFormat, purpose, creationContext))
                 return imageBuffer;
         }
-#elif USE(SKIA)
+#elif USE(SKIA_GPU)
         if (auto imageBuffer = ImageBuffer::create<ImageBufferSkiaAcceleratedBackend>(size, resolutionScale, colorSpace, pixelFormat, purpose, { }))
             return imageBuffer;
 #endif

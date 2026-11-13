@@ -27,6 +27,11 @@
 
 extern char** environ;
 
+template<typename T> static char* toCharPointer(const T& string)
+{
+    return reinterpret_cast<char*>(const_cast<char8_t*>(string.data()));
+}
+
 namespace WebKit {
 
 static String auxiliaryProcessPath(ProcessLauncher::ProcessType processType)
@@ -70,9 +75,9 @@ void ProcessLauncher::launchProcess()
     auto connectionFD = String::number(socketPair.client.value()).utf8();
 
     Vector<char*, 5> argv;
-    argv.append(const_cast<char*>(executable.data()));
-    argv.append(const_cast<char*>(processIdentifier.data()));
-    argv.append(const_cast<char*>(connectionFD.data()));
+    argv.append(toCharPointer(executable));
+    argv.append(toCharPointer(processIdentifier));
+    argv.append(toCharPointer(connectionFD));
 #if ENABLE(DEVELOPER_MODE)
     if (m_launchOptions.processType == ProcessLauncher::ProcessType::Web && m_client && m_client->shouldConfigureJSCForTesting())
         argv.append(const_cast<char*>("--configure-jsc-for-testing"));
@@ -83,14 +88,14 @@ void ProcessLauncher::launchProcess()
     // ConnectionUnix.cpp:273-278); launches happen on the main thread, so no other
     // client socket can be leaked into this child.
     pid_t pid = 0;
-    int result = posix_spawn(&pid, executable.data(), nullptr, nullptr, argv.mutableSpan().data(), environ);
+    int result = posix_spawn(&pid, toCharPointer(executable), nullptr, nullptr, argv.mutableSpan().data(), environ);
 
     // The child has its copy; the parent must not keep the client end open, or the
     // server end never sees EOF when the child dies.
     socketPair.client = { };
 
     if (result) {
-        WTFLogAlways("ProcessLauncher: posix_spawn(%s) failed: %d", executable.data(), result);
+        WTFLogAlways("ProcessLauncher: posix_spawn(%s) failed: %d", toCharPointer(executable), result);
         RunLoop::mainSingleton().dispatch([protectedThis = Ref { *this }] {
             protectedThis->didFinishLaunchingProcess(0, { });
         });

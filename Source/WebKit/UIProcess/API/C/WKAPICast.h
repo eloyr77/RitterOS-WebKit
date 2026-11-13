@@ -446,4 +446,8 @@ inline WKStorageBlockingPolicy toAPI(WebCore::StorageBlockingPolicy policy)
 #include "WKAPICastPlayStation.h"
 #endif
 
+#if defined(__ritteros__)
+#include "WKAPICastRitterOS.h"
+#endif
+
 #endif // WKAPICast_h

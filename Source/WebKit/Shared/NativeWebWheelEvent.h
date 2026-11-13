@@ -74,6 +74,9 @@ public:
     static Ref<NativeWebWheelEvent> create(WPEEvent*);
     static Ref<NativeWebWheelEvent> create(WPEEvent*, WebWheelEvent::Phase);
 #endif
+#elif PLATFORM(RITTEROS)
+    // RitterOS: the view (UIProcess/API/C/ritteros/WKView.cpp) fills the event in itself.
+    static Ref<NativeWebWheelEvent> create(WebWheelEventInit&& init) { return adoptRef(*new NativeWebWheelEvent(WTF::move(init))); }
 #elif PLATFORM(PLAYSTATION)
     static Ref<NativeWebWheelEvent> create(struct wpe_input_axis_event*, float deviceScaleFactor, WebWheelEvent::Phase, WebWheelEvent::Phase momentumPhase);
 #elif PLATFORM(WIN)

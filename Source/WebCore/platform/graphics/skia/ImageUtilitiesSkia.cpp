@@ -27,10 +27,14 @@
 #include "ImageUtilities.h"
 
 #if USE(SKIA)
+#if USE(SKIA_GPU)
 #include "GLContext.h"
+#endif
 #include "MIMETypeRegistry.h"
 #include "NativeImage.h"
+#if USE(SKIA_GPU)
 #include "PlatformDisplay.h"
+#endif
 
 WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_BEGIN
 #include <skia/core/SkData.h>
@@ -44,6 +48,19 @@ WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_END
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
+
+// (USE(SKIA_GPU) off, RitterOS: no GL context; nothing here is texture-backed.)
+#ifndef WEBCORE_SKIA_GL_CONTEXT_HELPER
+#define WEBCORE_SKIA_GL_CONTEXT_HELPER
+static inline bool makeSkiaGLContextCurrent()
+{
+#if USE(SKIA_GPU)
+    return PlatformDisplay::sharedDisplay().skiaGLContext()->makeContextCurrent();
+#else
+    return false;
+#endif
+}
+#endif
 
 class VectorSkiaWritableStream final : public SkWStream {
 public:
@@ -81,7 +98,7 @@ static SkWebpEncoder::Options webpEncoderOptions(std::optional<double> quality)
 
 static sk_sp<SkData> encodeAcceleratedImage(const NativeImage& nativeImage, const String& mimeType, std::optional<double> quality)
 {
-    if (!PlatformDisplay::sharedDisplay().skiaGLContext()->makeContextCurrent())
+    if (!makeSkiaGLContextCurrent())
         return nullptr;
 
     auto* grContext = nativeImage.grContext();

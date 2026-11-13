@@ -34,6 +34,7 @@ extern "C" {
 
 enum {
     kWKCursorTypePointer = 0,
+    kWKCursorTypeIBeam = 1,
     kWKCursorTypeHand = 2,
     kWKCursorTypeNone = 37,
 };

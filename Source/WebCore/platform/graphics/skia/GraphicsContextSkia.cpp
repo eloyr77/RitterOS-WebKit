@@ -32,14 +32,18 @@
 #include "FloatRect.h"
 #include "FloatRoundedRect.h"
 #include "FontRenderOptions.h"
+#if USE(SKIA_GPU)
 #include "GLContext.h"
+#endif
 #include "ImageBuffer.h"
 #include "IntRect.h"
 #include "NativeImage.h"
 #include "NotImplemented.h"
 #include "PathSegment.h"
 #include "Pattern.h"
+#if USE(SKIA_GPU)
 #include "PlatformDisplay.h"
+#endif
 #include "ProcessCapabilities.h"
 #include "SkiaImageAtlasLayoutBuilder.h"
 #include "SkiaPaintingEngine.h"
@@ -158,7 +162,11 @@ bool GraphicsContextSkia::makeGLContextCurrentIfNeeded() const
     if (m_renderingPurpose != RenderingPurpose::Canvas && m_renderingPurpose != RenderingPurpose::DOM)
         return true;
 
+#if USE(SKIA_GPU)
     return PlatformDisplay::sharedDisplay().skiaGLContext()->makeContextCurrent();
+#else
+    return true;
+#endif
 }
 
 void GraphicsContextSkia::pushSkiaState()
@@ -248,6 +256,9 @@ sk_sp<SkImage> GraphicsContextSkia::imageForCurrentThread(const sk_sp<SkImage>& 
     if (!image->isTextureBacked())
         return image;
 
+#if !USE(SKIA_GPU)
+    return image;
+#else
     auto* glContext = PlatformDisplay::sharedDisplay().skiaGLContext();
     if (!glContext || !glContext->makeContextCurrent())
         return image;
@@ -266,6 +277,7 @@ sk_sp<SkImage> GraphicsContextSkia::imageForCurrentThread(const sk_sp<SkImage>& 
 
     // When drawing GPU-backed image on CPU-backed canvas we need to convert image to CPU-backed one.
     return imageInThisThread->makeRasterImage(grContext);
+#endif
 }
 
 void GraphicsContextSkia::drawNativeImage(const NativeImage& nativeImage, const FloatRect& destRect, const FloatRect& srcRect, RasterDrawingOptions options)
@@ -1112,6 +1124,10 @@ void GraphicsContextSkia::fillRectWithRoundedHole(const FloatRect& outerRect, co
 // FIXME: Make this a GraphicsContextSkia static function, and use it throughout WebCore.
 static sk_sp<SkSurface> createAcceleratedSurface(const IntSize& size)
 {
+#if !USE(SKIA_GPU)
+    UNUSED_PARAM(size);
+    return nullptr;
+#else
     auto* glContext = PlatformDisplay::sharedDisplay().skiaGLContext();
     if (!glContext || !glContext->makeContextCurrent())
         return nullptr;
@@ -1126,6 +1142,7 @@ static sk_sp<SkSurface> createAcceleratedSurface(const IntSize& size)
         return nullptr;
 
     return surface;
+#endif
 }
 
 void GraphicsContextSkia::drawPattern(const NativeImage& nativeImage, const FloatRect& destRect, const FloatRect& tileRect, const AffineTransform& patternTransform, const FloatPoint& phase, const FloatSize& spacing, RasterDrawingOptions options)

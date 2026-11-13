@@ -86,6 +86,9 @@ public:
 #if ENABLE(WPE_PLATFORM)
     static Ref<NativeWebMouseEvent> create(WPEEvent*);
 #endif
+#elif PLATFORM(RITTEROS)
+    // RitterOS: the view (UIProcess/API/C/ritteros/WKView.cpp) fills the event in itself.
+    static Ref<NativeWebMouseEvent> create(WebMouseEventInit&& init) { return adoptRef(*new NativeWebMouseEvent(WTF::move(init))); }
 #elif PLATFORM(PLAYSTATION)
     static Ref<NativeWebMouseEvent> create(struct wpe_input_pointer_event*, float deviceScaleFactor, WebMouseEventSyntheticClickType = WebMouseEventSyntheticClickType::NoTap);
 #elif PLATFORM(WIN)

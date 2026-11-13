@@ -27,10 +27,14 @@
 #include "NativeImage.h"
 
 #if USE(SKIA)
+#if USE(SKIA_GPU)
 #include "GLContext.h"
+#endif
 #include "GraphicsContextSkia.h"
 #include "PixelBuffer.h"
+#if USE(SKIA_GPU)
 #include "PlatformDisplay.h"
+#endif
 WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_BEGIN // GLib/Win ports
 #include <skia/core/SkColorSpace.h>
 #include <skia/core/SkImage.h>
@@ -38,6 +42,19 @@ WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_BEGIN // GLib/Win ports
 WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_END
 
 namespace WebCore {
+
+// (USE(SKIA_GPU) off, RitterOS: no GL context; nothing here is texture-backed.)
+#ifndef WEBCORE_SKIA_GL_CONTEXT_HELPER
+#define WEBCORE_SKIA_GL_CONTEXT_HELPER
+static inline bool makeSkiaGLContextCurrent()
+{
+#if USE(SKIA_GPU)
+    return PlatformDisplay::sharedDisplay().skiaGLContext()->makeContextCurrent();
+#else
+    return false;
+#endif
+}
+#endif
 
 RefPtr<NativeImage> NativeImage::create(PlatformImagePtr&& platformImage, std::optional<GainMap>&& gainMap, GrDirectContext* grContext)
 {
@@ -175,7 +192,7 @@ NativeImage::UnpremultipliedPixels NativeImage::unpremultipliedPixels() const
     if (!sizeInBytes || SkImageInfo::ByteSizeOverflowed(sizeInBytes))
         return { };
 
-    if (platformImage->isTextureBacked() && !PlatformDisplay::sharedDisplay().skiaGLContext()->makeContextCurrent())
+    if (platformImage->isTextureBacked() && !makeSkiaGLContextCurrent())
         return { };
 
     Vector<uint8_t> pixels(sizeInBytes);
@@ -193,7 +210,7 @@ std::optional<Color> NativeImage::singlePixelSolidColor() const
 
     auto platformImage = this->platformImage();
     if (platformImage->isTextureBacked()) {
-        if (!PlatformDisplay::sharedDisplay().skiaGLContext()->makeContextCurrent())
+        if (!makeSkiaGLContextCurrent())
             return std::nullopt;
 
         ASSERT(m_grContext);

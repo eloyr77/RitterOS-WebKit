@@ -1,4 +1,4 @@
-# DRAFT: Source/WebKit/PlatformRitterOS.cmake
+# Source/WebKit/PlatformRitterOS.cmake: the RitterOS port's WebKit (docs/webkit-port.md in Compass)
 #
 # Borrowed from PlatformPlayStation.cmake (the non-GLib Unix process model, IPC/unix,
 # Shared/unix/AuxiliaryProcessMain.cpp, DrawingAreaCoordinatedGraphics +
@@ -56,12 +56,7 @@ list(APPEND WebKit_SOURCES
     WebProcess/WebPage/CoordinatedGraphics/DrawingAreaCoordinatedGraphics.cpp  # + patch WK3 (LayerTreeHostNull.h)
 
     # --- New RitterOS files (each modeled on the file named after it) ---
-    Shared/API/c/ritteros/WKEventRitterOS.cpp               # Shared/API/c/playstation/WKEventPlayStation.cpp
 
-    Shared/ritteros/NativeWebKeyboardEventRitterOS.cpp      # Shared/libwpe/NativeWebKeyboardEventLibWPE.cpp
-    Shared/ritteros/NativeWebMouseEventRitterOS.cpp         # Shared/libwpe/NativeWebMouseEventLibWPE.cpp
-    Shared/ritteros/NativeWebWheelEventRitterOS.cpp         # Shared/libwpe/NativeWebWheelEventLibWPE.cpp
-    Shared/ritteros/WebEventFactory.cpp                     # Shared/libwpe/WebEventFactory.cpp (no wpe_input_*)
 
     UIProcess/API/C/ritteros/WKRunLoop.cpp                  # UIProcess/API/C/playstation/WKRunLoop.cpp (verbatim)
     UIProcess/API/C/ritteros/WKView.cpp                     # UIProcess/API/C/playstation/WKView.cpp + WKPagePrivatePlayStation.cpp
@@ -93,6 +88,7 @@ list(APPEND WebKit_PRIVATE_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/Shared/ritteros"
     "${WEBKIT_DIR}/Shared/unix"
     "${WEBKIT_DIR}/UIProcess/API/C/ritteros"
+    "${WEBKIT_DIR}/UIProcess/API/ritteros"
     "${WEBKIT_DIR}/UIProcess/CoordinatedGraphics"
     "${WEBKIT_DIR}/UIProcess/ritteros"
     "${WEBKIT_DIR}/WebProcess/WebPage/CoordinatedGraphics"
@@ -100,7 +96,6 @@ list(APPEND WebKit_PRIVATE_INCLUDE_DIRECTORIES
 
 list(APPEND WebKit_PUBLIC_FRAMEWORK_HEADERS
     Shared/API/c/ritteros/WKBaseRitterOS.h      # typedef const struct OpaqueWKView* WKViewRef; (patch WK7 in WKBase.h)
-    Shared/API/c/ritteros/WKEventRitterOS.h
 
     UIProcess/API/C/ritteros/WKRunLoop.h
     UIProcess/API/C/ritteros/WKView.h           # draft in build/port-design/src/WKView.h

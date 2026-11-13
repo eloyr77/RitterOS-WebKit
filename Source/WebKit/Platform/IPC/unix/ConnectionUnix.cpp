@@ -335,7 +335,22 @@ void Connection::platformOpen()
     RefPtr<Connection> protectedThis(this);
     m_isConnected = true;
 
-#if PLATFORM(PLAYSTATION) || PLATFORM(RITTEROS)
+#if PLATFORM(RITTEROS)
+    // A thread of its own waits for the socket (the generic RunLoop watches no
+    // descriptors) and reads what comes, as PlayStation's does, with poll.
+    m_socketMonitor = Thread::create("SocketMonitor"_s, [protectedThis] {
+        int fd;
+        while ((fd = protectedThis->socketDescriptor()) != -1) {
+            struct pollfd pfd { fd, POLLIN, 0 };
+            int result = poll(&pfd, 1, -1);
+            if (result > 0 && (pfd.revents & (POLLIN | POLLHUP | POLLERR)))
+                protectedThis->readyReadHandler();
+            else if (result < 0 && errno != EINTR)
+                break;
+        }
+    });
+    return;
+#elif PLATFORM(PLAYSTATION)
     m_socketMonitor = Thread::create("SocketMonitor"_s, [protectedThis] {
         {
             int fd;

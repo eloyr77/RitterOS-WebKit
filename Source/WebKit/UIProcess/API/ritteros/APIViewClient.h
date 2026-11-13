@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Igalia S.L.
+ * Copyright (C) 2021 Sony Interactive Entertainment Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,23 +23,35 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "NativeWebWheelEvent.h"
+#pragma once
 
-#if USE(LIBWPE)
-#include "WebEventFactory.h"
+#include <wtf/CompletionHandler.h>
 #include <wtf/TZoneMallocInlines.h>
-#include <cstdio>
 
-namespace WebKit {
-
-WTF_MAKE_TZONE_ALLOCATED_IMPL(NativeWebWheelEvent);
-
-Ref<NativeWebWheelEvent> NativeWebWheelEvent::create(struct wpe_input_axis_event* event, float deviceScaleFactor, WebWheelEvent::Phase phase, WebWheelEvent::Phase momentumPhase)
-{
-    return adoptRef(*new NativeWebWheelEvent(WebEventFactory::createWebWheelEvent(event, deviceScaleFactor, phase, momentumPhase)));
+namespace WebCore {
+class Cursor;
+class IntRect;
+class Region;
 }
 
-} // namespace WebKit
+namespace WebKit {
+class RitterOSWebView;
+}
 
-#endif // USE(LIBWPE)
+namespace API {
+
+class ViewClient {
+    WTF_MAKE_TZONE_ALLOCATED_INLINE(ViewClient);
+public:
+    virtual ~ViewClient() = default;
+
+    virtual void setViewNeedsDisplay(WebKit::RitterOSWebView&, const WebCore::Region&) { }
+    virtual void enterFullScreen(WebKit::RitterOSWebView&, CompletionHandler<void(bool)>&& completionHandler) { completionHandler(false); }
+    virtual void exitFullScreen(WebKit::RitterOSWebView&) { }
+    virtual void closeFullScreen(WebKit::RitterOSWebView&) { }
+    virtual void beganEnterFullScreen(WebKit::RitterOSWebView&, const WebCore::IntRect&, const WebCore::IntRect&, CompletionHandler<void(bool)>&& completionHandler) { completionHandler(false); }
+    virtual void beganExitFullScreen(WebKit::RitterOSWebView&, const WebCore::IntRect&, const WebCore::IntRect&, CompletionHandler<void()>&& completionHandler) { completionHandler(); }
+    virtual void setCursor(WebKit::RitterOSWebView& view, const WebCore::Cursor& cursor) { }
+};
+
+} // namespace API
