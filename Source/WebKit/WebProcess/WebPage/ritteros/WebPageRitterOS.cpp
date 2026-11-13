@@ -32,6 +32,7 @@
 #include <WebCore/Settings.h>
 #include <WebCore/UserAgent.h>
 #include <WebCore/Editor.h>
+#include <WebCore/FrameSelection.h>
 #include <WebCore/EventNames.h>
 #include <WebCore/KeyboardEvent.h>
 #include <WebCore/LocalFrame.h>
@@ -235,7 +236,13 @@ bool WebPage::handleEditingKeyboardEvent(WebCore::KeyboardEvent& event)
     if (event.type() != eventNames().keydownEvent && event.type() != eventNames().keypressEvent)
         return false;
 
-    auto command = frame->editor().command(String::fromLatin1(interpretKeyEvent(&event)));
+    auto commandName = String::fromLatin1(interpretKeyEvent(&event));
+    // Outside editable content the keys that move the caret (arrows, Page Up
+    // and Down, Home, End) scroll the page and move focus: WebCore's default
+    // handling, which runs only when the editor does not take the key.
+    if (commandName.startsWith("Move"_s) && !frame->selection().selection().hasEditableStyle())
+        return false;
+    auto command = frame->editor().command(commandName);
 
     if (keyEvent->type() == PlatformEvent::Type::RawKeyDown) {
         // WebKit doesn't have enough information about mode to decide
