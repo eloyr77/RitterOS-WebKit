@@ -52,6 +52,13 @@ static String defaultCookieJarPath()
 
 #if PLATFORM(WIN)
     return FileSystem::pathByAppendingComponent(FileSystem::localUserSpecificStorageDirectory(), defaultFileName);
+#elif OS(RITTEROS)
+    // With the rest of Compass's data (WebsiteDataStoreRitterOS.cpp), not in
+    // whatever folder the network process started in.
+    const char* home = getenv("HOME");
+    String directory = FileSystem::pathByAppendingComponent(home && *home ? String::fromUTF8(home) : String("/tmp"_s), ".config/compass/data"_s);
+    FileSystem::makeAllDirectories(directory);
+    return FileSystem::pathByAppendingComponent(directory, defaultFileName);
 #else
     // FIXME: https://bugs.webkit.org/show_bug.cgi?id=192417
     return defaultFileName;
