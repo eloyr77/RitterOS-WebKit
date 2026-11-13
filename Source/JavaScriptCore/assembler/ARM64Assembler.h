@@ -4067,6 +4067,9 @@ public:
             linuxPageFlush(current, current + page);
 
         linuxPageFlush(current, end);
+#elif OS(RITTEROS)
+        // RitterOS (45d): the C library's __clear_cache cleans and invalidates, as on Linux.
+        __builtin___clear_cache(static_cast<char*>(code), static_cast<char*>(code) + size);
 #elif OS(WINDOWS)
         FlushInstructionCache(GetCurrentProcess(), code, size);
 #else
