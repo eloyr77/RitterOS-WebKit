@@ -29,7 +29,7 @@
 
 #include <stdlib.h>
 
-#if !OS(DARWIN) && !OS(FUCHSIA) && OS(UNIX)
+#if !OS(DARWIN) && !OS(FUCHSIA) && !OS(RITTEROS) && OS(UNIX)
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -49,9 +49,13 @@
 #include <zircon/syscalls.h>
 #endif
 
+#if OS(RITTEROS)
+#include <sys/random.h>
+#endif
+
 namespace WTF {
 
-#if !OS(DARWIN) && !OS(FUCHSIA) && OS(UNIX)
+#if !OS(DARWIN) && !OS(FUCHSIA) && !OS(RITTEROS) && OS(UNIX)
 NEVER_INLINE NO_RETURN_DUE_TO_CRASH static void crashUnableToOpenURandom()
 {
     CRASH();
@@ -63,7 +67,7 @@ NEVER_INLINE NO_RETURN_DUE_TO_CRASH static void crashUnableToReadFromURandom()
 }
 #endif
 
-#if !OS(DARWIN) && !OS(FUCHSIA) && !OS(WINDOWS)
+#if !OS(DARWIN) && !OS(FUCHSIA) && !OS(WINDOWS) && !OS(RITTEROS)
 RandomDevice::RandomDevice()
 {
     int ret = 0;
@@ -76,7 +80,7 @@ RandomDevice::RandomDevice()
 }
 #endif
 
-#if !OS(DARWIN) && !OS(FUCHSIA) && !OS(WINDOWS)
+#if !OS(DARWIN) && !OS(FUCHSIA) && !OS(WINDOWS) && !OS(RITTEROS)
 RandomDevice::~RandomDevice()
 {
     close(m_fd);
@@ -91,6 +95,15 @@ void RandomDevice::cryptographicallyRandomValues(std::span<uint8_t> buffer)
     RELEASE_ASSERT(!CCRandomGenerateBytes(buffer.data(), buffer.size()));
 #elif OS(FUCHSIA)
     zx_cprng_draw(buffer.data(), buffer.size());
+#elif OS(RITTEROS)
+    // RitterOS has no /dev/urandom: getrandom(), the kernel's generator, which never waits.
+    size_t filled = 0;
+    while (filled < buffer.size()) {
+        auto chunk = buffer.subspan(filled);
+        ssize_t got = getrandom(chunk.data(), chunk.size(), 0);
+        RELEASE_ASSERT(got > 0);
+        filled += got;
+    }
 #elif OS(UNIX)
     ssize_t amountRead = 0;
     while (static_cast<size_t>(amountRead) < buffer.size()) {
