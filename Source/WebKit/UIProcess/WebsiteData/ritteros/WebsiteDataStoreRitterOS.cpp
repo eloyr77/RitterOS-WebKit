@@ -31,13 +31,15 @@
 
 namespace WebKit {
 
-// The user's own folders, as on other Unix systems: ~/.cache/compass and
-// ~/.local/share/compass (HOME, else /tmp).
-static String compassDirectory(ASCIILiteral base)
+// Everything Compass keeps is in its folder in the user's configuration
+// folder, as RitterOS's apps do (~/.config/NAME): ~/.config/compass/data
+// (cookies, storage, databases...) and ~/.config/compass/cache (HOME, else
+// /tmp).
+static String compassDirectory(ASCIILiteral sub)
 {
     const char* home = getenv("HOME");
     String root = home && *home ? String::fromUTF8(home) : String("/tmp"_s);
-    return FileSystem::pathByAppendingComponent(FileSystem::pathByAppendingComponent(root, StringView(base)), "compass"_s);
+    return FileSystem::pathByAppendingComponent(FileSystem::pathByAppendingComponent(root, ".config/compass"_s), StringView(sub));
 }
 
 void WebsiteDataStore::platformInitialize()
@@ -54,14 +56,14 @@ String WebsiteDataStore::cacheDirectoryFileSystemRepresentation(const String& di
 {
     if (!baseCacheDirectory.isNull())
         return FileSystem::pathByAppendingComponent(baseCacheDirectory, directoryName);
-    return FileSystem::pathByAppendingComponent(compassDirectory(".cache"_s), directoryName);
+    return FileSystem::pathByAppendingComponent(compassDirectory("cache"_s), directoryName);
 }
 
 String WebsiteDataStore::websiteDataDirectoryFileSystemRepresentation(const String& directoryName, const String& baseDataDirectory, ShouldCreateDirectory)
 {
     if (!baseDataDirectory.isNull())
         return FileSystem::pathByAppendingComponent(baseDataDirectory, directoryName);
-    return FileSystem::pathByAppendingComponent(compassDirectory(".local/share"_s), directoryName);
+    return FileSystem::pathByAppendingComponent(compassDirectory("data"_s), directoryName);
 }
 
 UnifiedOriginStorageLevel WebsiteDataStore::defaultUnifiedOriginStorageLevel()
