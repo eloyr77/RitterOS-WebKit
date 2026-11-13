@@ -287,8 +287,11 @@ public:
     NODELETE static void emitDataICEpilogue(CCallHelpers&);
     static void emitDataICPrepareForCall(CCallHelpers&);
     static void emitDataICRestoreAfterCall(CCallHelpers&);
-    static CCallHelpers::Jump emitDataICCheckStructure(CCallHelpers&, GPRReg baseGPR, GPRReg scratchGPR);
-    static CCallHelpers::JumpList emitDataICCheckUid(CCallHelpers&, bool isSymbol, GPRReg, GPRReg scratchGPR);
+    // (MacroAssembler's types: CCallHelpers's own are the same, and CCallHelpers
+    // is still incomplete here when CodeBlock.h's includes come this way first,
+    // as without WebAssembly's headers.)
+    static MacroAssembler::Jump emitDataICCheckStructure(CCallHelpers&, GPRReg baseGPR, GPRReg scratchGPR);
+    static MacroAssembler::JumpList emitDataICCheckUid(CCallHelpers&, bool isSymbol, GPRReg, GPRReg scratchGPR);
     static void emitDataICJumpNextHandler(CCallHelpers&);
 
     NODELETE bool useHandlerIC() const;

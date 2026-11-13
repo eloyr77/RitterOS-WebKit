@@ -561,6 +561,12 @@
 #endif
 #endif
 
+/* RitterOS keeps W^X: JIT code is written through a second, writable
+   mapping of its memory (JavaScriptCore's ExecutableAllocator.cpp). */
+#if !defined(ENABLE_SEPARATED_WX_HEAP) && OS(RITTEROS)
+#define ENABLE_SEPARATED_WX_HEAP 1
+#endif
+
 #if !defined(ENABLE_SEPARATED_WX_HEAP)
 #define ENABLE_SEPARATED_WX_HEAP 0
 #endif

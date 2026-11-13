@@ -95,10 +95,14 @@ endif ()
 
 WEBKIT_OPTION_BEGIN()
 
-# JavaScript: LLInt, the interpreter in assembly, without a JIT for now
-# (RitterOS keeps W^X: a JIT needs JSC's dual-mapped executable memory, 45d).
-WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_JIT PRIVATE OFF)
-WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_DFG_JIT PRIVATE OFF)
+# JavaScript: LLInt, then the JITs (baseline, DFG). RitterOS keeps W^X:
+# JIT code is written through a second mapping of its memory (45d;
+# ENABLE_SEPARATED_WX_HEAP, ExecutableAllocator.cpp). JavaScriptCoreUseJIT=0
+# in the environment runs the interpreter alone. The FTL waits for
+# WebAssembly (its B3 code uses WebAssembly's types: it does not build
+# without it).
+WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_JIT PRIVATE ON)
+WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_DFG_JIT PRIVATE ON)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_FTL_JIT PRIVATE OFF)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_C_LOOP PRIVATE OFF)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_WEBASSEMBLY PRIVATE OFF)

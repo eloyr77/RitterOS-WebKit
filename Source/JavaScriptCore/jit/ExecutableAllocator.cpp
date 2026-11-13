@@ -49,6 +49,12 @@
 #include <wtf/WorkQueue.h>
 #include <wtf/posix/POSIXExtras.h>
 
+#if OS(RITTEROS)
+#include <cerrno>
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
+
 #if ENABLE(LIBPAS_JIT_HEAP)
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
 #include <bmalloc/jit_heap.h>
@@ -340,6 +346,43 @@ struct JITReservation {
     size_t size { 0 };
 };
 
+#if OS(RITTEROS)
+// RitterOS keeps W^X: no mapping is ever writable and executable at once
+// (an mprotect to RWX fails). The pool is one memory file mapped twice
+// (RitterOS's porting guide, 45d): over the reservation readable and
+// executable, and somewhere else readable and writable. Code is written
+// through the second (g_jscConfig.jitWriteSeparateHeaps, the
+// SEPARATED_WX_HEAP path of performJITMemcpy) and run from the first; the
+// pages are there from the start, so the pool's commit and decommit do
+// nothing (notifyNeedPage, notifyPageIsFree).
+static uint8_t* ritterosJITWritableBase;
+
+static void ritterosJITWrite(off_t offset, const void* source, size_t size)
+{
+    WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
+    memcpy(ritterosJITWritableBase + offset, source, size);
+    WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
+}
+
+static bool initializeRitterOSJITMemory(void* base, size_t size)
+{
+    int fd = memfd_create("JavaScriptCore JIT", MFD_CLOEXEC);
+    if (fd < 0)
+        return false;
+    bool ok = !ftruncate(fd, size);
+    void* executable = ok ? mmap(base, size, PROT_READ | PROT_EXEC, MAP_SHARED | MAP_FIXED, fd, 0) : MAP_FAILED;
+    void* writable = executable == base ? mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0) : MAP_FAILED;
+    close(fd);
+    if (executable != base || writable == MAP_FAILED) {
+        dataLogLn("JavaScriptCore: no JIT memory (", errno, "): the interpreter only");
+        return false;
+    }
+    ritterosJITWritableBase = static_cast<uint8_t*>(writable);
+    g_jscConfig.jitWriteSeparateHeaps = ritterosJITWrite;
+    return true;
+}
+#endif
+
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
 
 static ALWAYS_INLINE JITReservation initializeJITPageReservation()
@@ -372,17 +415,24 @@ static ALWAYS_INLINE JITReservation initializeJITPageReservation()
         jit_heap_runtime_config.max_segregated_object_size = 0;
 #endif
 
+#if OS(RITTEROS)
+    // Only the addresses: initializeRitterOSJITMemory maps the memory file
+    // over them (a writable and executable reservation is refused there).
+    constexpr bool reserveWritable = false, reserveExecutable = false;
+#else
+    constexpr bool reserveWritable = EXECUTABLE_POOL_WRITABLE, reserveExecutable = true;
+#endif
     auto tryCreatePageReservation = [] (size_t reservationSize, void* hintAddress) {
 #if OS(LINUX)
         // On Linux, if we use uncommitted reservation, mmap operation is recorded with small page size in perf command's output.
         // This makes the following JIT code logging broken and some of JIT code is not recorded correctly.
         // To avoid this problem, we use committed reservation if we need perf JITDump logging.
         if (Options::useJITDump())
-            return PageReservation::tryReserveWithGuardPages(reservationSize, OSAllocator::JSJITCodePages, hintAddress, EXECUTABLE_POOL_WRITABLE, true, true, false);
+            return PageReservation::tryReserveWithGuardPages(reservationSize, OSAllocator::JSJITCodePages, hintAddress, reserveWritable, reserveExecutable, true, false);
 #endif
         if (Options::useJITCage())
-            return PageReservation::tryReserve(reservationSize, OSAllocator::JSJITCodePages, hintAddress, EXECUTABLE_POOL_WRITABLE, true, false, Options::useJITCage());
-        return PageReservation::tryReserveWithGuardPages(reservationSize, OSAllocator::JSJITCodePages, hintAddress, EXECUTABLE_POOL_WRITABLE, true, false, false);
+            return PageReservation::tryReserve(reservationSize, OSAllocator::JSJITCodePages, hintAddress, reserveWritable, reserveExecutable, false, Options::useJITCage());
+        return PageReservation::tryReserveWithGuardPages(reservationSize, OSAllocator::JSJITCodePages, hintAddress, reserveWritable, reserveExecutable, false, false);
     };
 
     void* addressHint = reinterpret_cast<void*>(Options::jitMemoryReservationAddress());
@@ -401,7 +451,12 @@ static ALWAYS_INLINE JITReservation initializeJITPageReservation()
         if (g_jscConfig.useFastJITPermissions)
             threadSelfRestrict<MemoryRestriction::kRwxToRx>();
 
-#if ENABLE(SEPARATED_WX_HEAP)
+#if OS(RITTEROS)
+        if (!initializeRitterOSJITMemory(reservation.base, reservation.size)) {
+            reservation.pageReservation.deallocate();
+            return { };
+        }
+#elif ENABLE(SEPARATED_WX_HEAP)
         if (!g_jscConfig.useFastJITPermissions) {
             // First page of our JIT allocation is reserved.
             ASSERT(reservation.size >= executablePageSize() * 2);
@@ -915,12 +970,23 @@ private:
 
         void notifyNeedPage(void* page, size_t count) override
         {
+#if OS(RITTEROS)
+            // (the memory file's pages: always there, initializeRitterOSJITMemory)
+            UNUSED_PARAM(page);
+            UNUSED_PARAM(count);
+#else
             m_fixedAllocator.m_reservation.commit(page, executablePageSize() * count);
+#endif
         }
 
         void notifyPageIsFree(void* page, size_t count) override
         {
+#if OS(RITTEROS)
+            UNUSED_PARAM(page);
+            UNUSED_PARAM(count);
+#else
             m_fixedAllocator.m_reservation.decommit(page, executablePageSize() * count);
+#endif
         }
 #endif // !ENABLE(LIBPAS_JIT_HEAP)
 
@@ -1011,7 +1077,9 @@ private:
             islandBits.resize(newSize);
 
             uintptr_t islandsBegin = end - (newSize * islandSizeInBytes); // [islandsBegin, end)
+#if !OS(RITTEROS) // (the memory file's pages: always there)
             m_fixedAllocator.m_reservation.commit(std::bit_cast<void*>(islandsBegin), (newSize - oldSize) * islandSizeInBytes);
+#endif
 
             void* result = findResult();
             RELEASE_ASSERT(result);
