@@ -24,6 +24,10 @@ list(APPEND NetworkProcess_SOURCES
 # abort() and faults print a backtrace (WTF/wtf/ritteros/AbortBacktraceRitterOS.cpp).
 list(APPEND WebProcess_SOURCES ${WTF_DIR}/wtf/ritteros/AbortBacktraceRitterOS.cpp)
 list(APPEND NetworkProcess_SOURCES ${WTF_DIR}/wtf/ritteros/AbortBacktraceRitterOS.cpp)
+# With COMPASS_PROFILE=FOLDER, the web process's main thread is sampled
+# there (WTF/wtf/ritteros/ProfilerRitterOS.cpp, started by WebProcessMain,
+# which is libWebKit's).
+list(APPEND WebKit_SOURCES ${WTF_DIR}/wtf/ritteros/ProfilerRitterOS.cpp)
 cmake_language(DEFER CALL target_link_options WebProcess PRIVATE "--export-dynamic-symbol=abort")
 cmake_language(DEFER CALL target_link_options NetworkProcess PRIVATE "--export-dynamic-symbol=abort")
 list(APPEND WebProcess_PRIVATE_LIBRARIES OpenSSL::Crypto)
