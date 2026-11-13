@@ -286,6 +286,14 @@ public:
         } else if (y->color() == Black)
             removeFixup(x, xParent);
 
+        // z is out of the tree: its links are CheckedPtrs to nodes still in it.
+        // Kept, they would count as references to those nodes after z left (a
+        // stopped RunLoop timer keeps its node), and freeing one of them would
+        // crash as a CheckedPtr to a dead object.
+        z->setLeft(nullptr);
+        z->setRight(nullptr);
+        z->setParent(nullptr);
+
         return z;
     }
     
