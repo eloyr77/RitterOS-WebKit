@@ -50,6 +50,26 @@ void WKRunLoopCallOnMainThread(WKRunLoopCallback callback, void* userData)
     });
 }
 
+int WKRunLoopCycleMain()
+{
+    RunLoop::cycle();
+    auto next = RunLoop::nextWorkTime();
+    if (next.isInfinity())
+        return -1;
+    auto wait = next - MonotonicTime::now();
+    if (wait <= 0_s)
+        return 0;
+    return static_cast<int>(std::ceil(wait.milliseconds()));
+}
+
+void WKRunLoopSetWakeUpCallback(WKRunLoopCallback callback, void* userData)
+{
+    RunLoop::setWakeUpCallback([callback, userData] {
+        if (callback)
+            callback(userData);
+    });
+}
+
 void WKRunLoopInitializeMain()
 {
     // FIXME:

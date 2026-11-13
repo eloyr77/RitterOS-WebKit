@@ -33,6 +33,9 @@ foreach (_lang C CXX)
     set(CMAKE_${_lang}_LINKER_WRAPPER_FLAG "")
     set(CMAKE_${_lang}_LINKER_WRAPPER_FLAG_SEP "")
 endforeach ()
+# Libraries and programs without debug sections (libWebKit is 114 MB with
+# them); the symbol tables stay, for backtraces (lldb "image lookup -a").
+add_link_options(--strip-debug)
 
 set(PROJECT_VERSION_MAJOR 0)
 set(PROJECT_VERSION_MINOR 1)

@@ -274,6 +274,17 @@ void RunLoop::wakeUp()
     wakeUpWithLock();
 }
 
+MonotonicTime RunLoop::nextWorkTime()
+{
+    auto& runLoop = RunLoop::currentSingleton();
+    Locker locker { runLoop.m_loopLock };
+    if (runLoop.m_pendingTasks)
+        return MonotonicTime::now();
+    if (runLoop.m_schedules.isEmpty())
+        return MonotonicTime::infinity();
+    return runLoop.m_schedules.first()->scheduledTimePoint();
+}
+
 RunLoop::CycleResult RunLoop::cycle(RunLoopMode)
 {
     RunLoop::currentSingleton().runImpl(RunMode::Iterate);

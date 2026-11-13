@@ -151,6 +151,12 @@ public:
 #if USE(GENERIC_EVENT_LOOP) || USE(WINDOWS_EVENT_LOOP)
     WTF_EXPORT_PRIVATE static void setWakeUpCallback(WTF::Function<void()>&&);
 #endif
+#if USE(GENERIC_EVENT_LOOP)
+    // When the current thread's loop has work next (now when work is queued,
+    // infinity when nothing is): for an embedder that runs it with cycle()
+    // inside its own wait (RitterOS's Compass).
+    WTF_EXPORT_PRIVATE static MonotonicTime nextWorkTime();
+#endif
 
 #if USE(WINDOWS_EVENT_LOOP)
     using WindowsMessageHandler = Function<bool(MSG&)>;

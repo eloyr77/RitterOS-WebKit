@@ -38,6 +38,13 @@ WK_EXPORT void WKRunLoopStopMain();
 WK_EXPORT void WKRunLoopCallOnMainThread(WKRunLoopCallback, void* userData);
 WK_EXPORT void WKRunLoopInitializeMain();
 
+// The main run loop inside the embedder's own wait (RitterOS): one pass of
+// it (due timers, queued work), then the milliseconds until it has work
+// again (0: at once, -1: only when woken). The wake-up callback is called,
+// from any thread, when work is queued or a timer starts.
+WK_EXPORT int WKRunLoopCycleMain();
+WK_EXPORT void WKRunLoopSetWakeUpCallback(WKRunLoopCallback, void* userData);
+
 #ifdef __cplusplus
 }
 #endif
