@@ -21,6 +21,11 @@ list(APPEND WebProcess_SOURCES
 list(APPEND NetworkProcess_SOURCES
     NetworkProcess/EntryPoint/unix/NetworkProcessMain.cpp
 )
+# abort() and faults print a backtrace (WTF/wtf/ritteros/AbortBacktraceRitterOS.cpp).
+list(APPEND WebProcess_SOURCES ${WTF_DIR}/wtf/ritteros/AbortBacktraceRitterOS.cpp)
+list(APPEND NetworkProcess_SOURCES ${WTF_DIR}/wtf/ritteros/AbortBacktraceRitterOS.cpp)
+cmake_language(DEFER CALL target_link_options WebProcess PRIVATE "--export-dynamic-symbol=abort")
+cmake_language(DEFER CALL target_link_options NetworkProcess PRIVATE "--export-dynamic-symbol=abort")
 list(APPEND WebProcess_PRIVATE_LIBRARIES OpenSSL::Crypto)
 list(APPEND NetworkProcess_PRIVATE_LIBRARIES OpenSSL::Crypto)
 

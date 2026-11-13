@@ -79,6 +79,13 @@ FileTimes fileTimes(const String& path)
         return { };
     return { WallTime::fromRawSeconds(g_ascii_strtoull(birthtimeString, nullptr, 10)),
         WallTime::fromRawSeconds(g_file_info_get_attribute_uint64(fileInfo.get(), "time::modified")) };
+#elif OS(RITTEROS)
+    // RitterOS's st_ctim is when the file was made (sys/stat.h).
+    struct stat fileInfo;
+    if (FileSystem::statFile(FileSystem::fileSystemRepresentation(path).spanIncludingNullTerminator(), fileInfo))
+        return { };
+    return { WallTime::fromRawSeconds(fileInfo.st_ctim.tv_sec + fileInfo.st_ctim.tv_nsec / 1e9),
+        WallTime::fromRawSeconds(fileInfo.st_mtim.tv_sec + fileInfo.st_mtim.tv_nsec / 1e9) };
 #elif OS(WINDOWS)
     auto createTime = FileSystem::fileCreationTime(path);
     auto modifyTime = FileSystem::fileModificationTime(path);
