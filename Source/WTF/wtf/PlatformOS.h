@@ -126,6 +126,12 @@
 #define WTF_OS_QNX 1
 #endif
 
+/* OS(RITTEROS) - RitterOS (the toolchain targets ARCH-unknown-none-elf: the
+   port's build defines __ritteros__) */
+#if defined(__ritteros__)
+#define WTF_OS_RITTEROS 1
+#endif
+
 /* OS(WINDOWS) - Any version of Windows */
 #if defined(WIN32) || defined(_WIN32)
 #define WTF_OS_WINDOWS 1
@@ -142,6 +148,7 @@
     || OS(LINUX)            \
     || OS(NETBSD)           \
     || OS(OPENBSD)          \
+    || OS(RITTEROS)         \
     || defined(unix)        \
     || defined(__unix)      \
     || defined(__unix__)

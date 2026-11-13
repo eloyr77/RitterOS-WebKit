@@ -36,6 +36,11 @@
 #include <wtf/FileSystem.h>
 #include <wtf/MappedFileData.h>
 
+#if OS(RITTEROS) && !defined(MAP_FILE)
+// (a mapping's default: Linux defines it as 0, RitterOS not at all)
+#define MAP_FILE 0
+#endif
+
 namespace WTF::FileSystemImpl {
 
 std::optional<uint64_t> FileHandle::read(std::span<uint8_t> data)
