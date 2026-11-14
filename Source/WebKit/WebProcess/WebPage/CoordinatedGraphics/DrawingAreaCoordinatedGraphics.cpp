@@ -45,6 +45,7 @@
 #include <WebCore/Region.h>
 #include <WebCore/Settings.h>
 #include <WebCore/ShareableBitmap.h>
+#include <WebCore/SharedMemory.h>
 #include <wtf/SetForScope.h>
 
 #if PLATFORM(PLAYSTATION)
@@ -161,6 +162,12 @@ void DrawingAreaCoordinatedGraphics::scroll(const IntRect& scrollRect, const Int
 void DrawingAreaCoordinatedGraphics::updateRenderingWithForcedRepaint()
 {
     if (!m_layerTreeHost) {
+#if PLATFORM(RITTEROS)
+        // An update may still be on its way in the memory: paint elsewhere
+        // (the UI process's copy of the file keeps that one alive).
+        if (m_isWaitingForDidUpdate)
+            m_updateMemory = nullptr;
+#endif
         m_isWaitingForDidUpdate = false;
         m_dirtyRegion = m_webPage->bounds();
         display();
@@ -573,7 +580,14 @@ void DrawingAreaCoordinatedGraphics::display()
         return;
 
     UpdateInfo updateInfo;
+#if PLATFORM(RITTEROS)
+    {
+        SetForScope mayReuse(m_mayReuseUpdateMemory, true);
+        display(updateInfo);
+    }
+#else
     display(updateInfo);
+#endif
 
     if (updateInfo.updateRectBounds.isEmpty())
         return;
@@ -641,7 +655,32 @@ void DrawingAreaCoordinatedGraphics::display(UpdateInfo& updateInfo)
     IntSize bitmapSize = bounds.size();
     float deviceScaleFactor = webPage->corePage()->deviceScaleFactor();
     bitmapSize.scale(deviceScaleFactor);
+#if PLATFORM(RITTEROS)
+    // Reused only by display()'s updates: each waits for its DidUpdate before
+    // the next is painted, and the UI process has copied it out by then. The
+    // others (a resize's, leaving compositing) are sent without that wait, so
+    // they get memory of their own.
+    RefPtr<ShareableBitmap> bitmap;
+    ShareableBitmapConfiguration configuration { bitmapSize };
+    auto sizeInBytes = configuration.sizeInBytes();
+    if (sizeInBytes.hasOverflowed())
+        return;
+    if (!m_mayReuseUpdateMemory)
+        bitmap = ShareableBitmap::create(configuration);
+    else {
+        if (!m_updateMemory || m_updateMemory->size() < sizeInBytes.value()) {
+            // Room for the whole view, so most updates fit the one memory.
+            IntSize viewSize = webPage->size();
+            viewSize.scale(deviceScaleFactor);
+            auto viewBytes = ShareableBitmapConfiguration { viewSize.expandedTo(bitmapSize) }.sizeInBytes();
+            m_updateMemory = SharedMemory::allocate(viewBytes.hasOverflowed() ? sizeInBytes.value() : viewBytes.value());
+        }
+        if (m_updateMemory)
+            bitmap = ShareableBitmap::create(configuration, *m_updateMemory);
+    }
+#else
     auto bitmap = ShareableBitmap::create({ bitmapSize });
+#endif
     if (!bitmap)
         return;
 

@@ -33,6 +33,9 @@
 
 namespace WebCore {
 class GraphicsContext;
+#if PLATFORM(RITTEROS)
+class SharedMemory;
+#endif
 }
 
 namespace WebKit {
@@ -133,6 +136,13 @@ private:
     std::unique_ptr<LayerTreeHost> m_layerTreeHost;
 
     WebCore::Region m_dirtyRegion;
+#if PLATFORM(RITTEROS)
+    // The memory the updates are painted into, kept from one to the next: the
+    // UI process has copied an update out of it when its DidUpdate comes, and
+    // a new memory file each time is three system calls and a fresh mapping.
+    RefPtr<WebCore::SharedMemory> m_updateMemory;
+    bool m_mayReuseUpdateMemory { false };
+#endif
     WebCore::IntRect m_scrollRect;
     WebCore::IntSize m_scrollOffset;
 

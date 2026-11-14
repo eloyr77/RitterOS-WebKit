@@ -124,8 +124,10 @@ WEBKIT_OPTION_DEFAULT_PORT_VALUE(USE_JPEGXL PRIVATE OFF)         # default ON: l
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(USE_LCMS PRIVATE OFF)           # default ON: lcms2
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_XSLT PRIVATE OFF)        # default ON: libxslt
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_WEBGL PRIVATE OFF)       # default ON: ANGLE (Source/CMakeLists.txt:30)
-WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_VIDEO PRIVATE OFF)       # default ON; also turns off MEDIA_SOURCE,
-                                                                # MEDIA_STREAM, ENCRYPTED_MEDIA, VIDEO_USES_ELEMENT_FULLSCREEN
+# <video> and <audio> exist (sites such as YouTube stop at a missing
+# HTMLVideoElement) but have no media engine yet: MediaPlayer's engine list is
+# empty, so nothing plays and canPlayType answers "".
+WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_VIDEO PRIVATE ON)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_WEB_AUDIO PRIVATE OFF)   # default ON
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_REMOTE_INSPECTOR PRIVATE OFF) # default ON
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_GEOLOCATION PRIVATE OFF) # default ON
