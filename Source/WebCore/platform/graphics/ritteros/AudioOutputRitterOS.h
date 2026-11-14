@@ -4,7 +4,7 @@
  * (the local socket /run/sound, an elf on every machine since OS step 68w),
  * so Compass plays beside other programs; without it, to /dev/pcm0 (one
  * program at a time has it); with neither the sound is dropped and the
- * pictures play on.
+ * pictures play on. Both play only for root and the user at the console.
  *
  * Both say how much of what was written is still to be heard (OS request
  * 12, steps 68v/68w): soundd's "delay" message, the device's

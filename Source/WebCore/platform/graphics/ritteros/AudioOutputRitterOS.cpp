@@ -97,8 +97,9 @@ bool AudioOutputRitterOS::openMixer()
         ::close(fd);
         return false;
     }
-    // Messages, if this soundd speaks them (68w): it answers a delay. An
-    // older one takes the bytes for 3 frames of sound and says nothing.
+    // Messages (68w): it answers a delay. (An older soundd takes the bytes
+    // for 3 frames of sound and says nothing; one that refuses this
+    // program, 68z, closes the connection.)
     uint32_t delay;
     if (writeAll(fd, "RSND", 4) && sendMessage(fd, mixerDelay, nullptr, 0)
         && readAll(fd, &delay, sizeof(delay), 300)) {
@@ -128,25 +129,16 @@ bool AudioOutputRitterOS::open()
         return true;
     if (m_failed)
         return false;
+    // soundd plays only for root and the user at the console (OS step
+    // 68z), as /dev/pcm0 allows only them: another user's connection is
+    // closed at once (the delay asked reads its end), and the device says
+    // why.
     if (!openMixer() && !openDevice()) {
-        // An older system: soundd without messages, while it has the device.
-        int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-        struct sockaddr_un address { };
-        address.sun_family = AF_UNIX;
-        strncpy(address.sun_path, "/run/sound", sizeof(address.sun_path) - 1);
-        if (fd >= 0 && !connect(fd, reinterpret_cast<struct sockaddr*>(&address), sizeof(address))) {
-            m_fd = fd;
-            m_viaMixer = true;
-            m_exact = false;
-        } else if (fd >= 0)
-            ::close(fd);
-    }
-    if (m_fd < 0) {
         // (Said once: the pictures play on without sound.)
         static bool said;
         if (!said) {
             said = true;
-            dprintf(2, "media: no sound (no soundd, and /dev/pcm0: %s)\n", strerror(errno));
+            dprintf(2, "media: no sound (soundd refused or not running; /dev/pcm0: %s)\n", strerror(errno));
         }
         m_failed = true;
         return false;
