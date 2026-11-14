@@ -3226,7 +3226,8 @@ enum class WebCore::MediaPlayerMediaEngineIdentifier : uint8_t {
     MediaFoundation,
     MockMSE,
     CocoaWebM,
-    WirelessPlayback
+    WirelessPlayback,
+    RitterOS
 };
 
 enum class WebCore::MediaPlayerWirelessPlaybackTargetType : uint8_t {

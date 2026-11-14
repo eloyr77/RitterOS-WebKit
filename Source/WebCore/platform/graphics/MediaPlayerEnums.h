@@ -95,6 +95,7 @@ enum class MediaPlayerMediaEngineIdentifier : uint8_t {
     MockMSE,
     CocoaWebM,
     WirelessPlayback,
+    RitterOS,
 };
 
 enum class MediaPlayerWirelessPlaybackTargetType : uint8_t {
@@ -191,7 +192,8 @@ enum class MediaPlatformType {
     Mock,
     AVFObjC,
     GStreamer,
-    Remote
+    Remote,
+    RitterOS
 };
 
 } // namespace WebCore

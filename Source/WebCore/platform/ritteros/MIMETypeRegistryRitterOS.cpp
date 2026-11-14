@@ -53,6 +53,21 @@ static const std::initializer_list<TypeExtensionPair>& platformMediaTypes()
         { "application/xhtml+xml"_s, "xhtml"_s },
         { "text/xml"_s, "xml"_s },
         { "text/xsl"_s, "xsl"_s },
+        // Media (MediaPlayerPrivateRitterOS plays these).
+        { "audio/aac"_s, "aac"_s },
+        { "audio/flac"_s, "flac"_s },
+        { "audio/mp4"_s, "m4a"_s },
+        { "video/mp4"_s, "m4v"_s },
+        { "video/quicktime"_s, "mov"_s },
+        { "audio/mpeg"_s, "mp3"_s },
+        { "video/mp4"_s, "mp4"_s },
+        { "audio/ogg"_s, "oga"_s },
+        { "audio/ogg"_s, "ogg"_s },
+        { "video/ogg"_s, "ogv"_s },
+        { "audio/ogg"_s, "opus"_s },
+        { "audio/wav"_s, "wav"_s },
+        { "audio/webm"_s, "weba"_s },
+        { "video/webm"_s, "webm"_s },
     };
     return platformMediaTypes;
 }

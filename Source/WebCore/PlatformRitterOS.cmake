@@ -138,6 +138,27 @@ if (SHARPYUV_LIBS)
     list(APPEND WebCore_PRIVATE_LIBRARIES ${SHARPYUV_LIBS})   # as PlatformWin.cmake:247-249
 endif ()
 
+if (ENABLE_VIDEO)
+    # The media engine (MediaPlayerPrivateRitterOS): FFmpeg's demuxers and
+    # decoders, an LGPL build from deps/build.sh (static, in the sysroot), in
+    # the order they need each other.
+    list(APPEND WebCore_SOURCES
+        platform/graphics/ritteros/AudioOutputRitterOS.cpp
+        platform/graphics/ritteros/MediaPipelineRitterOS.cpp
+        platform/graphics/ritteros/MediaPlayerPrivateRitterOS.cpp
+    )
+    if (ENABLE_MEDIA_SOURCE)
+        list(APPEND WebCore_SOURCES
+            platform/graphics/ritteros/MediaSourcePrivateRitterOS.cpp
+            platform/graphics/ritteros/SourceBufferPrivateRitterOS.cpp
+        )
+    endif ()
+    foreach (library avformat avcodec swscale swresample avutil)
+        find_library(FFMPEG_${library}_LIBRARY ${library} REQUIRED)
+        list(APPEND WebCore_PRIVATE_LIBRARIES ${FFMPEG_${library}_LIBRARY})
+    endforeach ()
+endif ()
+
 if (ENABLE_DRAG_SUPPORT)
     list(APPEND WebCore_SOURCES
         platform/skia/DragImageSkia.cpp

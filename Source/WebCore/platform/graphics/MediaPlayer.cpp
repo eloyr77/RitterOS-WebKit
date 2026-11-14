@@ -112,6 +112,10 @@
 
 #endif // PLATFORM(COCOA)
 
+#if PLATFORM(RITTEROS)
+#include "MediaPlayerPrivateRitterOS.h"
+#endif
+
 #if USE(EXTERNAL_HOLEPUNCH)
 #include "MediaPlayerPrivateHolePunch.h"
 #endif
@@ -361,6 +365,10 @@ static void buildMediaEnginesVector() WTF_REQUIRES_LOCK(mediaEngineVectorLock)
 
 #if ENABLE(WIRELESS_PLAYBACK_MEDIA_PLAYER)
     MediaPlayerPrivateWirelessPlayback::registerMediaEngine(addMediaEngine);
+#endif
+
+#if PLATFORM(RITTEROS)
+    MediaPlayerPrivateRitterOS::registerMediaEngine(addMediaEngine);
 #endif
 
     haveMediaEnginesVector() = true;

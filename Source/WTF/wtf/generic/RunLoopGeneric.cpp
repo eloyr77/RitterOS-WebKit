@@ -46,19 +46,28 @@ public:
         return adoptRef(*new ScheduledTask(timer));
     }
 
-    void fired()
+    // With the run loop's lock: whether this due task still fires (a timer
+    // restarted since it was due is in the schedule again, at its new time),
+    // and a repeating one's next time, set while it is out of the schedule.
+    // (Changing the time of a task in the schedule, as fired() did when an
+    // earlier timer of the same batch restarted this one, breaks the
+    // RedBlackTree's order: due timers then wait behind a later one.)
+    bool prepareToFire()
     {
-        if (!isActive())
-            return;
-
+        if (!isActive() || isScheduled())
+            return false;
         if (!m_isRepeating)
             deactivate();
-
-        if (isActive())
+        else
             updateReadyTime();
+        return true;
+    }
 
+    void fired()
+    {
         m_timer.fired();
     }
+
 
     MonotonicTime scheduledTimePoint() const
     {
@@ -217,6 +226,11 @@ void RunLoop::runImpl(RunMode runMode)
         // Dispatch scheduled timers.
         while (!firedTimers.isEmpty()) {
             auto task = firedTimers.takeFirst();
+            {
+                Locker locker { m_loopLock };
+                if (!task->prepareToFire())
+                    continue;
+            }
             task->fired();
 
             Locker locker { m_loopLock };
