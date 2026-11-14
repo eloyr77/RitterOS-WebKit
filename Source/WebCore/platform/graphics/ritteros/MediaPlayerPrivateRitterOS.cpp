@@ -878,7 +878,10 @@ Ref<MediaTimePromise> MediaPlayerPrivateRitterOS::seekToTarget(const SeekTarget&
 {
     m_seekPromise.emplace(PlatformMediaError::Cancelled);
     m_seekTime = target.time;
-    m_ended = false;
+    // From the end (the pipeline stopped there) while not paused: `loop`'s
+    // seek to the start plays on.
+    if (std::exchange(m_ended, false) && !m_paused)
+        m_pipeline->setPlaying(true);
 #if ENABLE(MEDIA_SOURCE)
     if (m_isMediaSource) {
         Ref<MediaTimePromise> promise = *m_seekPromise;

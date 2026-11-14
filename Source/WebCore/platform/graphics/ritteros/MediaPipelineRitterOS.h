@@ -145,6 +145,20 @@ private:
     MediaTime clockLocked() const;
     void holdClockLocked();
     void updateStallLocked();
+    void updateRefreshUserLocked();
+    // The refresh a picture handed on now reaches (where the refreshes are
+    // known): the clock then, and how far past it a picture's time may be
+    // and still be shown there (half a refresh, the nearest picture; moved
+    // up to presentHysteresis toward the side the last one was on, so that
+    // pictures due about halfway between two refreshes do not flip between
+    // them).
+    struct PresentTarget {
+        MonotonicTime refresh;
+        MediaTime clock;
+        Seconds window;
+        Seconds period;
+    };
+    std::optional<PresentTarget> presentTargetLocked(MonotonicTime now) const;
 
     Lock m_wakeLock;
     Function<void()> m_wakeMainThread WTF_GUARDED_BY_LOCK(m_wakeLock);
@@ -153,6 +167,7 @@ private:
     RefPtr<Thread> m_videoThread;
     RefPtr<Thread> m_audioThread;
     bool m_stopping WTF_GUARDED_BY_LOCK(m_lock) { false };
+    bool m_refreshUser WTF_GUARDED_BY_LOCK(m_lock) { false }; // (DisplayRefreshRitterOS)
 
     bool m_hasVideo WTF_GUARDED_BY_LOCK(m_lock) { false };
     bool m_hasAudio WTF_GUARDED_BY_LOCK(m_lock) { false };
@@ -175,6 +190,8 @@ private:
     bool m_hasFirstImage WTF_GUARDED_BY_LOCK(m_lock) { false };
     MediaTime m_lastQueuedVideoTime WTF_GUARDED_BY_LOCK(m_lock);
     bool m_audioStarved WTF_GUARDED_BY_LOCK(m_lock) { true };
+    // The last picture's time less the clock at the refresh it was for.
+    std::optional<Seconds> m_lastPresentOffset WTF_GUARDED_BY_LOCK(m_lock);
 
     // The clock: m_clockBase at m_clockStart when playing (and not stalled).
     bool m_playing WTF_GUARDED_BY_LOCK(m_lock) { false };

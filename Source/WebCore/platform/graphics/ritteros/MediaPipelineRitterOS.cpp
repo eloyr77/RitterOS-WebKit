@@ -8,6 +8,9 @@
 #if ENABLE(VIDEO) && PLATFORM(RITTEROS)
 
 #include "AudioOutputRitterOS.h"
+#include "DisplayRefreshRitterOS.h"
+#include <cmath>
+#include <time.h>
 #include <wtf/MainThread.h>
 #include <wtf/text/WTFString.h>
 
@@ -36,6 +39,13 @@ static constexpr size_t maxAudioPackets = 400;
 static constexpr Seconds audioLead = 120_ms;
 // Late by this much with nothing to show: hold the clock (stalled).
 static constexpr double stallSlack = 0.1;
+// A picture handed on reaches the screen this long after at most (the page's
+// update, Compass's copy into the window, windowd's composition: measured on
+// the VivoBook about 8 ms, rarely 14), so it goes this far before the
+// refresh it is for, and a little earlier (a timer's lateness).
+static constexpr Seconds presentLatency = 10_ms;
+static constexpr Seconds presentEarly = 3_ms;
+static constexpr Seconds presentHysteresis = 2_ms;
 
 static int64_t toMicroseconds(const MediaTime& time)
 {
@@ -118,6 +128,7 @@ void MediaPipelineRitterOS::stop()
     {
         Locker locker { m_lock };
         m_stopping = true;
+        updateRefreshUserLocked();
         m_condition.notifyAll();
     }
     if (m_videoThread)
@@ -145,6 +156,35 @@ void MediaPipelineRitterOS::setHasVideo(bool hasVideo)
 {
     Locker locker { m_lock };
     m_hasVideo = hasVideo;
+    updateRefreshUserLocked();
+}
+
+// Refreshes are watched while this plays a video.
+void MediaPipelineRitterOS::updateRefreshUserLocked()
+{
+    bool wanted = m_playing && m_hasVideo && !m_stopping;
+    if (wanted == m_refreshUser)
+        return;
+    m_refreshUser = wanted;
+    if (wanted)
+        DisplayRefreshRitterOS::singleton().addUser();
+    else
+        DisplayRefreshRitterOS::singleton().removeUser();
+}
+
+auto MediaPipelineRitterOS::presentTargetLocked(MonotonicTime now) const -> std::optional<PresentTarget>
+{
+    if (!m_playing || m_stalled)
+        return std::nullopt;
+    auto refresh = DisplayRefreshRitterOS::singleton().refreshAfter(now + presentLatency);
+    if (!refresh)
+        return std::nullopt;
+    auto clock = clockLocked() + MediaTime::createWithDouble((refresh->time - now).seconds());
+    auto half = refresh->period / 2;
+    auto window = half;
+    if (m_lastPresentOffset)
+        window = std::clamp(*m_lastPresentOffset + half, half - presentHysteresis, half + presentHysteresis);
+    return PresentTarget { refresh->time, clock, window, refresh->period };
 }
 
 void MediaPipelineRitterOS::setHasAudio(bool hasAudio)
@@ -217,6 +257,7 @@ void MediaPipelineRitterOS::flush(const MediaTime& time)
     m_videoInputEnded = m_audioInputEnded = false;
     m_videoDecodingEnded = m_audioPlayingEnded = false;
     m_flushTime = time;
+    m_lastPresentOffset = std::nullopt;
     m_clockBase = time;
     m_clockStart = MonotonicTime::now();
     m_current.time = MediaTime::invalidTime(); // (the next picture replaces it)
@@ -259,6 +300,7 @@ void MediaPipelineRitterOS::holdClockLocked()
 {
     m_clockBase = clockLocked();
     m_clockStart = MonotonicTime::now();
+    m_lastPresentOffset = std::nullopt;
 }
 
 void MediaPipelineRitterOS::updateStallLocked()
@@ -281,8 +323,10 @@ void MediaPipelineRitterOS::updateStallLocked()
     if (stalled)
         holdClockLocked();
     m_stalled = stalled;
-    if (!stalled)
+    if (!stalled) {
         m_clockStart = MonotonicTime::now();
+        m_lastPresentOffset = std::nullopt;
+    }
     m_condition.notifyAll();
 }
 
@@ -295,6 +339,7 @@ void MediaPipelineRitterOS::setPlaying(bool playing)
     m_playing = playing;
     m_stalled = false;
     updateStallLocked();
+    updateRefreshUserLocked();
     m_condition.notifyAll();
 }
 
@@ -343,13 +388,16 @@ bool MediaPipelineRitterOS::updateCurrentImage()
     Locker locker { m_lock };
     updateStallLocked();
     auto clock = clockLocked();
+    // The picture due at the refresh this change reaches.
+    auto present = presentTargetLocked(MonotonicTime::now());
+    auto target = present ? present->clock + MediaTime::createWithDouble(present->window.seconds()) : clock;
     bool changed = false;
     // After a flush the first picture comes at once (a seek's picture).
     if (!m_pictures.isEmpty() && (!m_current.image || !m_current.time.isValid())) {
         m_current = m_pictures.takeFirst();
         changed = true;
     }
-    while (!m_pictures.isEmpty() && m_pictures.first().time <= clock) {
+    while (!m_pictures.isEmpty() && m_pictures.first().time <= target) {
         if (changed) {
             m_droppedFrames++;
             m_statsSkipped++;
@@ -357,7 +405,16 @@ bool MediaPipelineRitterOS::updateCurrentImage()
         m_current = m_pictures.takeFirst();
         changed = true;
     }
+    if (changed && present && m_current.time.isValid())
+        m_lastPresentOffset = Seconds((m_current.time - present->clock).toDouble());
     if (changed) {
+        static bool trace = getenv("COMPASS_MEDIA_TRACE");
+        if (trace) {
+            struct timespec now;
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            dprintf(2, "mt pic %lld %.6f %.6f\n", static_cast<long long>(now.tv_sec) * 1000000000LL + now.tv_nsec,
+                m_current.time.isValid() ? m_current.time.toDouble() : -1.0, clock.toDouble());
+        }
         if (m_playing && !m_stalled && m_current.time.isValid()) {
             double late = std::max(0.0, (clock - m_current.time).toDouble());
             m_statsShown++;
@@ -376,7 +433,19 @@ std::optional<Seconds> MediaPipelineRitterOS::timeUntilNextPicture() const
     Locker locker { m_lock };
     if (!m_playing || m_stalled || m_pictures.isEmpty())
         return std::nullopt;
-    return Seconds((m_pictures.first().time - clockLocked()).toDouble());
+    auto now = MonotonicTime::now();
+    auto untilDue = Seconds((m_pictures.first().time - clockLocked()).toDouble());
+    // Known refreshes: the first one the picture is shown at
+    // (presentTargetLocked), less the time a picture takes to reach the
+    // screen.
+    auto present = presentTargetLocked(now);
+    if (!present)
+        return untilDue;
+    auto at = present->refresh;
+    auto late = untilDue - (at - now) - present->window;
+    if (late > 0_s)
+        at = at + present->period * std::ceil(late / present->period);
+    return at - presentLatency - presentEarly - now;
 }
 
 void MediaPipelineRitterOS::reportStatistics()

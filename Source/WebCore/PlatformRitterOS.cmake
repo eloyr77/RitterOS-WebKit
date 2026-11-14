@@ -144,6 +144,7 @@ if (ENABLE_VIDEO)
     # the order they need each other.
     list(APPEND WebCore_SOURCES
         platform/graphics/ritteros/AudioOutputRitterOS.cpp
+        platform/graphics/ritteros/DisplayRefreshRitterOS.cpp
         platform/graphics/ritteros/MediaPipelineRitterOS.cpp
         platform/graphics/ritteros/MediaPlayerPrivateRitterOS.cpp
     )
