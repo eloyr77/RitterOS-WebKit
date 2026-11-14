@@ -119,6 +119,12 @@ public:
     // On the main thread: advance to the picture due now. True when the
     // picture to show changed (the page repaints).
     bool updateCurrentImage();
+    // How long until the next decoded picture is due (none: nothing queued,
+    // or the clock is not running).
+    std::optional<Seconds> timeUntilNextPicture() const;
+    // COMPASS_MEDIA_STATS: pictures shown and skipped, how late they were
+    // shown, since the last call (a line to standard error).
+    void reportStatistics();
     RefPtr<NativeImage> currentImage() const;
     bool hasFirstImage() const;
     MediaTime lastQueuedVideoTime() const;
@@ -179,6 +185,10 @@ private:
     float m_volume WTF_GUARDED_BY_LOCK(m_lock) { 1 };
     bool m_muted WTF_GUARDED_BY_LOCK(m_lock) { false };
     unsigned m_decodedFrames WTF_GUARDED_BY_LOCK(m_lock) { 0 };
+    unsigned m_statsShown WTF_GUARDED_BY_LOCK(m_lock) { 0 };
+    unsigned m_statsSkipped WTF_GUARDED_BY_LOCK(m_lock) { 0 };
+    double m_statsLateSum WTF_GUARDED_BY_LOCK(m_lock) { 0 };
+    double m_statsLateMax WTF_GUARDED_BY_LOCK(m_lock) { 0 };
     unsigned m_droppedFrames WTF_GUARDED_BY_LOCK(m_lock) { 0 };
 };
 

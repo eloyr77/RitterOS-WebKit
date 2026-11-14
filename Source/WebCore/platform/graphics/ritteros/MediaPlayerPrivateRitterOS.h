@@ -140,6 +140,7 @@ private:
     std::optional<MediaTimePromise::AutoRejectProducer> m_seekPromise;
     mutable PlatformTimeRanges m_buffered;
     mutable uint64_t m_lastLoadedBytes { 0 };
+    MonotonicTime m_lastStatistics;
 };
 
 } // namespace WebCore

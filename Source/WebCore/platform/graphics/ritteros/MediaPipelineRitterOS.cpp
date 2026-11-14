@@ -350,17 +350,42 @@ bool MediaPipelineRitterOS::updateCurrentImage()
         changed = true;
     }
     while (!m_pictures.isEmpty() && m_pictures.first().time <= clock) {
-        if (changed)
+        if (changed) {
             m_droppedFrames++;
+            m_statsSkipped++;
+        }
         m_current = m_pictures.takeFirst();
         changed = true;
     }
     if (changed) {
+        if (m_playing && !m_stalled && m_current.time.isValid()) {
+            double late = std::max(0.0, (clock - m_current.time).toDouble());
+            m_statsShown++;
+            m_statsLateSum += late;
+            m_statsLateMax = std::max(m_statsLateMax, late);
+        }
         m_hasFirstImage = true;
         updateStallLocked();
         m_condition.notifyAll();
     }
     return changed;
+}
+
+std::optional<Seconds> MediaPipelineRitterOS::timeUntilNextPicture() const
+{
+    Locker locker { m_lock };
+    if (!m_playing || m_stalled || m_pictures.isEmpty())
+        return std::nullopt;
+    return Seconds((m_pictures.first().time - clockLocked()).toDouble());
+}
+
+void MediaPipelineRitterOS::reportStatistics()
+{
+    Locker locker { m_lock };
+    dprintf(2, "media: %u pictures shown, %u skipped, late %.1f ms on average, %.1f ms at most\n", m_statsShown, m_statsSkipped,
+        m_statsShown ? m_statsLateSum / m_statsShown * 1000 : 0.0, m_statsLateMax * 1000);
+    m_statsShown = m_statsSkipped = 0;
+    m_statsLateSum = m_statsLateMax = 0;
 }
 
 RefPtr<NativeImage> MediaPipelineRitterOS::currentImage() const

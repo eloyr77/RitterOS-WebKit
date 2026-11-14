@@ -809,6 +809,21 @@ void MediaPlayerPrivateRitterOS::tick()
         m_tickTimer.stop();
         player->timeChanged();
     }
+    if (m_paused || m_ended)
+        return;
+
+    static bool statistics = getenv("COMPASS_MEDIA_STATS");
+    if (statistics && MonotonicTime::now() - m_lastStatistics > 5_s) {
+        m_lastStatistics = MonotonicTime::now();
+        m_pipeline->reportStatistics();
+    }
+    // The next look: when the next picture is due (a picture shown on time,
+    // not at the next turn of a fixed timer), at most 50 ms on (the sound's
+    // end, a stall's end; the decoding threads also wake this up).
+    auto delay = 50_ms;
+    if (auto untilNext = m_pipeline->timeUntilNextPicture())
+        delay = std::clamp(*untilNext, 0_s, 50_ms);
+    m_tickTimer.startOneShot(delay);
 }
 
 void MediaPlayerPrivateRitterOS::play()
@@ -819,8 +834,7 @@ void MediaPlayerPrivateRitterOS::play()
         m_ended = false;
     }
     m_pipeline->setPlaying(true);
-    m_tickTimer.startRepeating(10_ms);
-    tick();
+    tick(); // (it sets the timer)
 }
 
 void MediaPlayerPrivateRitterOS::pause()
