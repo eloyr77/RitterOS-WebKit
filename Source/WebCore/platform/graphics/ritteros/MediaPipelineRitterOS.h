@@ -10,7 +10,9 @@
  *  - the clock is the computer's monotonic clock (playing: the time of the
  *    last start plus the time since), held while the decoders have nothing
  *    to give (stalled); the sound is written to be heard at its time (the
- *    device's buffered sound is estimated: AudioOutputRitterOS).
+ *    system says how much is buffered: AudioOutputRitterOS), and kept so
+ *    by stretching it a little where the device's crystal and the clock
+ *    drift apart (the resampler's compensation).
  *
  * The player's main thread takes the picture due (currentImage) and asks
  * the page to repaint when it changes. Packets carry their decoder's setup

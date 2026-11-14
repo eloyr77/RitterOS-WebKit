@@ -18,6 +18,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/channel_layout.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/opt.h>
 #include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
 }
@@ -35,8 +36,17 @@ static constexpr size_t maxVideoPacketBytes = 8 * 1024 * 1024;
 static constexpr size_t maxVideoPackets = 240;
 static constexpr size_t maxAudioPacketBytes = 1024 * 1024;
 static constexpr size_t maxAudioPackets = 400;
-// The sound is written this far ahead of its time (what the device holds).
-static constexpr Seconds audioLead = 120_ms;
+// The sound is written while less than this waits to be heard (a volume
+// change is heard that much later).
+static constexpr Seconds audioAhead = 150_ms;
+// The sound heard off its time by more than this (a seek, a stall, the
+// start through soundd) is put right at once: skipped when late, a pause
+// when early; below it the resampler stretches or squeezes it a little
+// (at most audioStretch: a pitch nobody hears) until it is in step, as the
+// device's crystal and the clock drift apart.
+static constexpr double audioJump = 0.04;
+static constexpr double audioStep = 0.005;
+static constexpr double audioStretch = 0.005;
 // Late by this much with nothing to show: hold the clock (stalled).
 static constexpr double stallSlack = 0.1;
 // A picture handed on reaches the screen this long after at most (the page's
@@ -44,6 +54,11 @@ static constexpr double stallSlack = 0.1;
 // the VivoBook about 8 ms, rarely 14), so it goes this far before the
 // refresh it is for, and a little earlier (a timer's lateness).
 static constexpr Seconds presentLatency = 10_ms;
+// ... and at the soonest this long after (measured 5-7 ms): a picture taken
+// earlier than this before a refresh could still be shown at it, so a
+// look at the pictures (any wake-up of the main thread, not only the
+// timer) takes the one due at the first refresh after this.
+static constexpr Seconds presentSoonest = 5_ms;
 static constexpr Seconds presentEarly = 3_ms;
 static constexpr Seconds presentHysteresis = 2_ms;
 
@@ -176,7 +191,7 @@ auto MediaPipelineRitterOS::presentTargetLocked(MonotonicTime now) const -> std:
 {
     if (!m_playing || m_stalled)
         return std::nullopt;
-    auto refresh = DisplayRefreshRitterOS::singleton().refreshAfter(now + presentLatency);
+    auto refresh = DisplayRefreshRitterOS::singleton().refreshAfter(now + presentSoonest);
     if (!refresh)
         return std::nullopt;
     auto clock = clockLocked() + MediaTime::createWithDouble((refresh->time - now).seconds());
@@ -657,44 +672,96 @@ void MediaPipelineRitterOS::audioThreadMain()
     AudioOutputRitterOS output;
     Vector<int16_t> pcm;
     uint64_t generation = 0;
+    constexpr int rate = AudioOutputRitterOS::sampleRate;
+    // How far off its time the sound is heard (seconds, > 0: early), looked
+    // at when a frame's sound starts to be written; the samples the
+    // resampler added to the last frame (not in that look yet).
+    std::optional<double> syncError;
+    int lastStretch = 0;
+    bool catchingUp = false; // (late: skipping until in step, over frames)
 
     // Writes frames (48 kHz stereo) starting at time when they are due.
     // False when a flush or the end came first.
     auto play = [&](int16_t* samples, size_t count, MediaTime start) -> bool {
+        Vector<int16_t> held; // (a pause's sound not heard, then the rest)
+        bool looked = false;
+        bool waitingEarly = false;
         while (count) {
-            float gain;
+            bool playing;
             {
                 Locker locker { m_lock };
                 if (m_stopping || generation != m_audioGeneration)
                     return false;
-                if (!m_playing) {
-                    locker.unlockEarly();
-                    output.close(); // (lets the device go while paused)
-                    Locker waitLocker { m_lock };
-                    while (!m_stopping && generation == m_audioGeneration && !m_playing)
-                        m_condition.wait(m_lock);
-                    continue;
+                playing = m_playing;
+            }
+            if (!playing) {
+                // Paused: what was written and not heard is dropped (the
+                // device let go of at once), and written again at the start.
+                auto unheard = output.takeUnheard();
+                output.close();
+                if (!unheard.isEmpty()) {
+                    size_t back = unheard.size() / AudioOutputRitterOS::channels;
+                    unheard.append(std::span<const int16_t>(samples, count * AudioOutputRitterOS::channels));
+                    held = WTF::move(unheard);
+                    samples = held.mutableSpan().data();
+                    count = held.size() / AudioOutputRitterOS::channels;
+                    start = start - MediaTime(static_cast<int64_t>(back), rate);
                 }
+                syncError.reset();
+                lastStretch = 0;
+                Locker waitLocker { m_lock };
+                while (!m_stopping && generation == m_audioGeneration && !m_playing)
+                    m_condition.wait(m_lock);
+                continue;
+            }
+            output.open();
+            // (Not under the lock: soundd answers on its socket.)
+            auto buffered = output.buffered();
+            double lead;
+            float gain;
+            {
+                Locker locker { m_lock };
+                if (m_stopping || generation != m_audioGeneration || !m_playing)
+                    continue;
                 auto clock = clockLocked();
                 if (m_audioStarved) {
                     m_audioStarved = false;
                     updateStallLocked();
                     clock = clockLocked();
                 }
-                output.open();
-                double lead = (start - clock).toDouble() - output.buffered().seconds();
-                if (lead > audioLead.seconds()) {
-                    // Early: wait (the clock may be held for the pictures).
-                    m_condition.waitFor(m_lock, Seconds(std::min(lead - audioLead.seconds() + 0.005, 0.05)));
+                // Written now, this frame is heard after what is buffered.
+                lead = (start - clock).toDouble() - buffered.seconds();
+                if (lead < -audioJump || lead > audioJump) {
+                    static bool trace = getenv("COMPASS_MEDIA_TRACE");
+                    if (trace && !waitingEarly && !catchingUp)
+                        dprintf(2, "mt sndjump %.6f %.6f\n", lead, buffered.seconds());
+                }
+                if (lead > audioJump || (waitingEarly && lead > audioStep)) {
+                    // Early (a seek, the clock held for the pictures): wait.
+                    waitingEarly = true;
+                    m_condition.waitFor(m_lock, Seconds(std::clamp(lead + buffered.seconds(), 0.002, 0.05)));
                     continue;
                 }
-                if (lead < -0.08) {
-                    // Late (a seek, a stall): drop what is past.
-                    size_t skip = std::min<size_t>(count, static_cast<size_t>(-lead * AudioOutputRitterOS::sampleRate));
-                    samples += skip * 2;
-                    count -= skip;
-                    start = start + MediaTime(static_cast<int64_t>(skip), AudioOutputRitterOS::sampleRate);
+                waitingEarly = false;
+                if (buffered > audioAhead) {
+                    m_condition.waitFor(m_lock, std::min(buffered - audioAhead + 5_ms, 50_ms));
                     continue;
+                }
+                if (lead < -audioJump || (catchingUp && lead < -audioStep)) {
+                    // Late (a seek, a stall, soundd's start): skip what is past.
+                    catchingUp = true;
+                    size_t skip = std::min<size_t>(count, static_cast<size_t>(-lead * rate));
+                    samples += skip * AudioOutputRitterOS::channels;
+                    count -= skip;
+                    start = start + MediaTime(static_cast<int64_t>(skip), rate);
+                    syncError.reset();
+                    lastStretch = 0;
+                    continue;
+                }
+                catchingUp = false;
+                if (!looked) {
+                    looked = true;
+                    syncError = lead; // (in step but for a little: the resampler's)
                 }
                 gain = m_muted ? 0 : m_volume;
             }
@@ -706,7 +773,7 @@ void MediaPipelineRitterOS::audioThreadMain()
             output.write(samples, chunk);
             samples += chunk * 2;
             count -= chunk;
-            start = start + MediaTime(static_cast<int64_t>(chunk), AudioOutputRitterOS::sampleRate);
+            start = start + MediaTime(static_cast<int64_t>(chunk), rate);
         }
         return true;
     };
@@ -714,11 +781,12 @@ void MediaPipelineRitterOS::audioThreadMain()
     while (true) {
         std::optional<MediaPacketRitterOS> input;
         bool ended = false;
+        bool seeked = false;
         {
             Locker locker { m_lock };
             while (!m_stopping && generation == m_audioGeneration && m_audioPackets.isEmpty()
                 && !(m_audioInputEnded && !m_audioPlayingEnded)) {
-                if (m_playing && !m_audioStarved && output.buffered() < 20_ms) {
+                if (m_playing && !m_audioStarved && output.bufferedEstimate() < 20_ms) {
                     m_audioStarved = true; // nothing to play: hold the clock
                     updateStallLocked();
                 }
@@ -728,6 +796,7 @@ void MediaPipelineRitterOS::audioThreadMain()
                 break;
             if (generation != m_audioGeneration) {
                 generation = m_audioGeneration;
+                seeked = true;
                 if (decoder)
                     avcodec_flush_buffers(decoder);
                 if (resampler)
@@ -743,6 +812,11 @@ void MediaPipelineRitterOS::audioThreadMain()
             m_condition.notifyAll();
         }
         wakeMainThread();
+        if (seeked) {
+            output.reset(); // (the old sound gone at once)
+            syncError.reset();
+            lastStretch = 0;
+        }
 
         if (ended) {
             if (decoder)
@@ -772,6 +846,9 @@ void MediaPipelineRitterOS::audioThreadMain()
                 AVChannelLayout stereo = AV_CHANNEL_LAYOUT_STEREO;
                 swr_alloc_set_opts2(&resampler, &stereo, AV_SAMPLE_FMT_S16, AudioOutputRitterOS::sampleRate,
                     &frame->ch_layout, static_cast<AVSampleFormat>(frame->format), frame->sample_rate, 0, nullptr);
+                // (Resampling even at 48 kHz: it stretches the sound.)
+                if (resampler)
+                    av_opt_set_int(resampler, "flags", SWR_FLAG_RESAMPLE, 0);
                 if (!resampler || swr_init(resampler) < 0) {
                     av_frame_unref(frame);
                     continue;
@@ -779,10 +856,33 @@ void MediaPipelineRitterOS::audioThreadMain()
             }
             int room = static_cast<int>(av_rescale_rnd(swr_get_delay(resampler, frame->sample_rate) + frame->nb_samples,
                 AudioOutputRitterOS::sampleRate, frame->sample_rate, AV_ROUND_UP));
+            // Heard off its time by a little (the clock and the device's
+            // crystal apart): this frame a little longer (early) or shorter.
+            int stretch = 0;
+            if (syncError && output.exact()) {
+                double error = *syncError - static_cast<double>(lastStretch) / rate;
+                if (std::abs(error) > audioStep) {
+                    int most = std::max(1, static_cast<int>(room * audioStretch));
+                    stretch = std::clamp(static_cast<int>(std::lround(error * rate)), -most, most);
+                }
+            }
+            static bool trace = getenv("COMPASS_MEDIA_TRACE");
+            if (trace && syncError) {
+                struct timespec now;
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                dprintf(2, "mt snd %lld %.6f %d %.6f\n", static_cast<long long>(now.tv_sec) * 1000000000LL + now.tv_nsec,
+                    *syncError, stretch, output.bufferedEstimate().seconds());
+            }
+            syncError.reset();
+            if (swr_set_compensation(resampler, stretch, stretch ? room : 0) < 0)
+                stretch = 0;
+            lastStretch = stretch;
+            room += std::abs(stretch) + 16;
             if (pcm.size() < static_cast<size_t>(room) * 2)
                 pcm.grow(static_cast<size_t>(room) * 2);
             uint8_t* out[1] = { reinterpret_cast<uint8_t*>(pcm.mutableSpan().data()) };
             int count = swr_convert(resampler, out, room, const_cast<const uint8_t**>(frame->extended_data), frame->nb_samples);
+
             av_frame_unref(frame);
             if (count <= 0)
                 continue;
@@ -795,11 +895,14 @@ void MediaPipelineRitterOS::audioThreadMain()
         }
         if (ended && !flushed) {
             // Everything written: wait until it was heard, then say so.
-            while (output.buffered() > 0_s) {
+            while (true) {
+                auto left = output.buffered();
+                if (left <= 0_s)
+                    break;
                 Locker locker { m_lock };
                 if (m_stopping || generation != m_audioGeneration)
                     break;
-                m_condition.waitFor(m_lock, std::min(output.buffered(), 50_ms));
+                m_condition.waitFor(m_lock, std::min(left, 50_ms));
             }
             Locker locker { m_lock };
             if (generation == m_audioGeneration)
