@@ -165,3 +165,20 @@ if (ENABLE_DRAG_SUPPORT)
         platform/skia/DragImageSkia.cpp
     )
 endif ()
+
+if (ENABLE_SPEECH_SYNTHESIS)
+    list(APPEND WebCore_SOURCES
+        platform/ritteros/PlatformSpeechSynthesizerRitterOS.cpp   # NEW: no speech engine (no voices; speaking fails)
+    )
+endif ()
+
+if (ENABLE_WEB_AUDIO)
+    list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES
+        "${WEBCORE_DIR}/platform/audio/ritteros"
+    )
+    list(APPEND WebCore_SOURCES
+        platform/audio/ritteros/AudioDestinationRitterOS.cpp      # NEW: a render thread to soundd (AudioOutputRitterOS)
+        platform/audio/ritteros/AudioFileReaderRitterOS.cpp       # NEW: decodeAudioData and the HRTF file through FFmpeg
+        platform/audio/ritteros/FFTFrameRitterOS.cpp              # NEW: FFmpeg's real FFT (libavutil/tx.h)
+    )
+endif ()

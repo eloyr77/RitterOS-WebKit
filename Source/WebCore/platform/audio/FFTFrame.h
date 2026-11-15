@@ -39,6 +39,10 @@
 #include <Accelerate/Accelerate.h>
 #endif
 
+#if PLATFORM(RITTEROS)
+struct AVTXContext; // FFmpeg's transform (libavutil/tx.h)
+#endif
+
 #include <memory>
 #include <wtf/Forward.h>
 #include <wtf/TZoneMalloc.h>
@@ -110,6 +114,20 @@ private:
     GUniquePtr<GstFFTF32> m_inverseFft;
     Vector<GstFFTF32Complex> m_complexData;
 #endif // USE(GSTREAMER)
+
+#if PLATFORM(RITTEROS)
+    // FFmpeg's real FFTs of this size, forward and inverse (each frame its
+    // own: a transform may keep scratch data), and their buffers.
+    void createTransforms();
+    void destroyTransforms();
+    using TransformFunction = void (*)(::AVTXContext*, void* out, void* in, ptrdiff_t stride);
+    ::AVTXContext* m_forward { nullptr };
+    ::AVTXContext* m_inverse { nullptr };
+    TransformFunction m_forwardFunction { nullptr };
+    TransformFunction m_inverseFunction { nullptr };
+    Vector<float> m_samples; // fftSize real values
+    Vector<float> m_complex; // fftSize / 2 + 1 complex values, interleaved
+#endif
 
     AudioFloatArray m_realData;
     AudioFloatArray m_imagData;

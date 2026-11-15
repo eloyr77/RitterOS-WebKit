@@ -48,7 +48,7 @@ public:
     constexpr AddressType(AddressType::Kind addressType)
         : m_type(addressType)
     { }
-#if !PLATFORM(PLAYSTATION) && ENABLE(JIT)
+#if !PLATFORM(PLAYSTATION) && ENABLE(JIT) && ENABLE(B3_JIT) // RitterOS: the JIT without B3 (no FTL)
     AddressType(B3::Type);
 #endif
     explicit constexpr AddressType(bool is64Bit)

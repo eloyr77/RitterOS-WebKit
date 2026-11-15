@@ -204,7 +204,7 @@ AccessHandleEnabled:
   humanReadableDescription: "Enable AccessHandle API"
   defaultValue:
     "PLATFORM(COCOA)" : true
-    "PLATFORM(GTK) || PLATFORM(WPE)" : true
+    "PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(RITTEROS)" : true
     default: false
     WebKitLegacy: false
 
@@ -546,7 +546,7 @@ AsyncClipboardAPIEnabled:
   defaultValue:
     default: false
     WebKit:
-      "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(WIN)" : true
+      "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(WIN) || PLATFORM(RITTEROS)" : true
       default: false
 
 AsyncClipboardRichContentEnabled:
@@ -1460,7 +1460,7 @@ CanvasColorSpaceEnabled:
   humanReadableName: "Canvas Color Spaces"
   humanReadableDescription: "Enable use of predefined canvas color spaces"
   defaultValue:
-    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE)": true
+    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(RITTEROS)": true
     default: false
     WebCore: false
 
@@ -1912,7 +1912,7 @@ DataTransferItemsEnabled:
   humanReadableName: "Data Transfer Items"
   humanReadableDescription: "Enables DataTransferItem in the clipboard API"
   defaultValue:
-    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(WIN)": true
+    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(WIN) || PLATFORM(RITTEROS)": true
     default: false
     WebKitLegacy: true
     WebCore: false
@@ -2477,7 +2477,7 @@ FileSystemEnabled:
   humanReadableDescription: "Enable File System API"
   defaultValue:
     "PLATFORM(COCOA)" : true
-    "PLATFORM(GTK) || PLATFORM(WPE)" : true
+    "PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(RITTEROS)" : true
     default: false
     WebKitLegacy: false
   disableInLockdownMode: true
@@ -2504,7 +2504,7 @@ FileSystemWritableStreamEnabled:
   humanReadableDescription: "Enable File System WritableStream API"
   defaultValue:
     "PLATFORM(COCOA)" : true
-    "PLATFORM(GTK) || PLATFORM(WPE)": true
+    "PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(RITTEROS)": true
     default: false
     WebKitLegacy: false
   disableInLockdownMode: true
@@ -2873,7 +2873,7 @@ HiddenPageCSSAnimationSuspensionEnabled:
   status: embedder
   webcoreOnChange: hiddenPageCSSAnimationSuspensionEnabledChanged
   defaultValue:
-    "PLATFORM(COCOA) || PLATFORM(GTK)": true
+    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(RITTEROS)": true
     default: false
     WebKitLegacy: true
     WebCore: false
@@ -2894,7 +2894,7 @@ HiddenPageDOMTimerThrottlingEnabled:
   defaultValue:
     default: false
     WebKit:
-      "PLATFORM(COCOA) || PLATFORM(GTK)": true
+      "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(RITTEROS)": true
       default: false
 
 HiddenUntilFoundEnabled:
@@ -4525,7 +4525,7 @@ NavigationAPIEnabled:
   humanReadableName: "Navigation API"
   humanReadableDescription: "Enable Navigation API"
   defaultValue:
-    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE)": true
+    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(RITTEROS)": true
     default: false
     WebKitLegacy: false
 
@@ -4536,7 +4536,7 @@ NavigationAPIPrecommitHandlerEnabled:
   humanReadableName: "Navigation API Precommit Handler"
   humanReadableDescription: "Enable Navigation API Precommit Handler"
   defaultValue:
-    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE)": true
+    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(RITTEROS)": true
     default: false
     WebKitLegacy: false
 
@@ -4663,7 +4663,7 @@ OffscreenCanvasEnabled:
   humanReadableDescription: "Support for the OffscreenCanvas APIs"
   condition: ENABLE(OFFSCREEN_CANVAS)
   defaultValue:
-    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE)": true
+    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(RITTEROS)": true
     default: false
     WebKitLegacy:
       "PLATFORM(COCOA)": true
@@ -4677,7 +4677,7 @@ OffscreenCanvasInWorkersEnabled:
   humanReadableDescription: "Support for the OffscreenCanvas APIs in Workers"
   condition: ENABLE(OFFSCREEN_CANVAS_IN_WORKERS)
   defaultValue:
-    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE)": true
+    "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(RITTEROS)": true
     default: false
     WebKitLegacy:
       "PLATFORM(COCOA)": true
@@ -4911,7 +4911,7 @@ PermissionsAPIEnabled:
   defaultValue:
     default: false
     WebKit:
-      "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(WIN)" : true
+      "PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(WIN) || PLATFORM(RITTEROS)" : true
       default: false
   sharedPreferenceForWebProcess: true
   richJavaScript: true
@@ -6168,7 +6168,7 @@ StorageAPIEnabled:
   humanReadableDescription: "Enable Storage API"
   defaultValue:
     "PLATFORM(COCOA)" : true
-    "PLATFORM(GTK) || PLATFORM(WPE)": true
+    "PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(RITTEROS)": true
     default: false
     WebKitLegacy: false
 
@@ -6180,7 +6180,7 @@ StorageAPIEstimateEnabled:
   humanReadableDescription: "Enable Storage API Estimate"
   defaultValue:
     "PLATFORM(COCOA)" : true
-    "PLATFORM(GTK) || PLATFORM(WPE)": true
+    "PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(RITTEROS)": true
     default: false
     WebKitLegacy: false
 

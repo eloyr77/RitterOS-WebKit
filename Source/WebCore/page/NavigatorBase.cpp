@@ -110,6 +110,14 @@ String NavigatorBase::platform() const
     return "Win32"_s;
 #elif OS(HAIKU)
     return "Haiku"_s;
+#elif OS(RITTEROS)
+    // What the user agent says (UserAgentRitterOS.cpp): Linux, as WebKitGTK's
+    // browsers on this processor say. (Empty, sites take it for a robot.)
+#if CPU(ARM64)
+    return "Linux aarch64"_s;
+#else
+    return "Linux x86_64"_s;
+#endif
 #else
     return ""_s;
 #endif

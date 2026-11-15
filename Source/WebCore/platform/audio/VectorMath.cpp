@@ -766,9 +766,16 @@ void multiplyComplex(std::span<const float> realSpan1, std::span<const float> im
 #endif
     for (; i < numberOfElementsToProcess; ++i) {
         // Read and compute result before storing them, in case the
-        // destination is the same as one of the sources.
-        realOutputVector[i] = realVector1[i] * realVector2[i] - imagVector1[i] * imagVector2[i];
-        imagOutputVector[i] = realVector1[i] * imagVector2[i] + imagVector1[i] * realVector2[i];
+        // destination is the same as one of the sources. (RitterOS: upstream
+        // stored the real part first and read it back for the imaginary one;
+        // FFTFrame::multiply works in place, so every convolution, the
+        // ConvolverNode's and HRTF panning's, came out wrong where this loop
+        // does the work: ARM64 without Accelerate, CPU(ARM_NEON) being 32-bit
+        // ARM's.)
+        float real = realVector1[i] * realVector2[i] - imagVector1[i] * imagVector2[i];
+        float imag = realVector1[i] * imagVector2[i] + imagVector1[i] * realVector2[i];
+        realOutputVector[i] = real;
+        imagOutputVector[i] = imag;
     }
 }
 

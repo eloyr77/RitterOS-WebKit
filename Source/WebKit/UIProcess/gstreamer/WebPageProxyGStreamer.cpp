@@ -26,7 +26,7 @@
 #include "config.h"
 #include "WebPageProxy.h"
 
-#if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(SPEECH_SYNTHESIS)
+#if ENABLE(SPEECH_SYNTHESIS) && ((ENABLE(VIDEO) && USE(GSTREAMER)) || PLATFORM(RITTEROS)) // (nothing of GStreamer: RitterOS builds it too)
 
 #include "MessageSenderInlines.h"
 #include "WebPageMessages.h"
@@ -79,4 +79,4 @@ void WebPageProxy::Internals::voicesDidChange()
 
 } // namespace WebKit
 
-#endif // ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(SPEECH_SYNTHESIS)
+#endif // ENABLE(SPEECH_SYNTHESIS) && ((ENABLE(VIDEO) && USE(GSTREAMER)) || PLATFORM(RITTEROS))

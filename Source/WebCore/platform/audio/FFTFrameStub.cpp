@@ -29,7 +29,7 @@
 
 #if ENABLE(WEB_AUDIO)
 
-#if !OS(DARWIN) && !USE(GSTREAMER)
+#if !OS(DARWIN) && !USE(GSTREAMER) && !PLATFORM(RITTEROS)
 
 #include "FFTFrame.h"
 
@@ -80,6 +80,6 @@ void FFTFrame::initialize()
 
 } // namespace WebCore
 
-#endif // !OS(DARWIN) && !USE(GSTREAMER)
+#endif // !OS(DARWIN) && !USE(GSTREAMER) && !PLATFORM(RITTEROS)
 
 #endif // ENABLE(WEB_AUDIO)

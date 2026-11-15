@@ -111,6 +111,12 @@ list(APPEND WebKit_PUBLIC_FRAMEWORK_HEADERS
     UIProcess/API/C/ritteros/WKViewClient.h
 )
 
+if (ENABLE_SPEECH_SYNTHESIS)
+    list(APPEND WebKit_SOURCES
+        UIProcess/gstreamer/WebPageProxyGStreamer.cpp       # the UI process's speech callbacks (no GStreamer in it)
+    )
+endif ()
+
 # WebKit/CMakeLists.txt:829-845 adds ${EGL_INCLUDE_DIRS}/${EGL_LIBRARIES}/${EGL_DEFINITIONS}
 # when neither USE_LIBEPOXY nor USE_ANGLE_EGL: those are empty here (nobody runs
 # find_package(EGL)), so there is nothing to undo.
