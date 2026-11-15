@@ -69,6 +69,7 @@ list(APPEND WebKit_SOURCES
 
     UIProcess/API/C/ritteros/WKRunLoop.cpp                  # UIProcess/API/C/playstation/WKRunLoop.cpp (verbatim)
     UIProcess/API/C/ritteros/WKView.cpp                     # UIProcess/API/C/playstation/WKView.cpp + WKPagePrivatePlayStation.cpp
+    UIProcess/API/C/ritteros/WKUserContentRitterOS.cpp      # user scripts, message handlers, callAsyncJavaScript in a named world
 
     UIProcess/Launcher/ritteros/ProcessLauncherRitterOS.cpp # NEW: posix_spawn (draft in build/port-design/src/)
 
@@ -109,6 +110,7 @@ list(APPEND WebKit_PUBLIC_FRAMEWORK_HEADERS
     UIProcess/API/C/ritteros/WKRunLoop.h
     UIProcess/API/C/ritteros/WKView.h           # draft in build/port-design/src/WKView.h
     UIProcess/API/C/ritteros/WKViewClient.h
+    UIProcess/API/C/ritteros/WKUserContentRitterOS.h
 )
 
 if (ENABLE_SPEECH_SYNTHESIS)

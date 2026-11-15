@@ -1076,8 +1076,8 @@ private:
             const size_t newSize = std::min(oldSize + islandsPerPage(), maxIslandsInThisRegion);
             islandBits.resize(newSize);
 
-            uintptr_t islandsBegin = end - (newSize * islandSizeInBytes); // [islandsBegin, end)
 #if !OS(RITTEROS) // (the memory file's pages: always there)
+            uintptr_t islandsBegin = end - (newSize * islandSizeInBytes); // [islandsBegin, end)
             m_fixedAllocator.m_reservation.commit(std::bit_cast<void*>(islandsBegin), (newSize - oldSize) * islandSizeInBytes);
 #endif
 

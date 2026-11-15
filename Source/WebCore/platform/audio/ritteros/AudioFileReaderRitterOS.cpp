@@ -243,7 +243,7 @@ RefPtr<AudioBus> AudioBus::loadPlatformResource(StringView name, float sampleRat
     auto contents = FileSystem::readEntireFile(path);
     RefPtr<AudioBus> bus = contents ? createBusFromInMemoryAudioFile(contents->span(), false, sampleRate) : nullptr;
     if (!bus) // (3D sound, PannerNode's HRTF, is silent without it)
-        dprintf(2, "webaudio: %s %s\n", contents ? "cannot decode" : "cannot read", path.utf8().data());
+        dprintf(2, "webaudio: %s %s\n", contents ? "cannot decode" : "cannot read", reinterpret_cast<const char*>(path.utf8().data()));
     return bus;
 }
 

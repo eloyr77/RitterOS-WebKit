@@ -98,9 +98,9 @@ WEBKIT_OPTION_BEGIN()
 # JavaScript: LLInt, then the JITs (baseline, DFG). RitterOS keeps W^X:
 # JIT code is written through a second mapping of its memory (45d;
 # ENABLE_SEPARATED_WX_HEAP, ExecutableAllocator.cpp). JavaScriptCoreUseJIT=0
-# in the environment runs the interpreter alone. The FTL waits for
-# WebAssembly (its B3 code uses WebAssembly's types: it does not build
-# without it).
+# in the environment runs the interpreter alone. The FTL is off: its B3
+# code uses WebAssembly's types and did not build without it; WebAssembly
+# is on now, and the FTL not yet tried.
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_JIT PRIVATE ON)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_DFG_JIT PRIVATE ON)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_FTL_JIT PRIVATE OFF)
