@@ -88,8 +88,13 @@ FloatRect ImageBufferContextSwitcher::enclosingDevicePixelRect(const GraphicsCon
 void ImageBufferContextSwitcher::beginClipAndDrawSourceImage(GraphicsContext& destinationContext, const FloatRect& repaintRect, const FloatRect&, NOESCAPE const Function<void(GraphicsContext&)>&)
 {
     if (auto* context = drawingContext(destinationContext)) {
-        auto rect = enclosingDevicePixelRect(*context, repaintRect);
         context->save();
+        if (m_reuseResult && m_lastResult) {
+            // (the source is kept as it is: nothing is painted into it)
+            context->clip(FloatRect());
+            return;
+        }
+        auto rect = enclosingDevicePixelRect(*context, repaintRect);
         context->clearRect(rect);
         context->clip(rect);
     }
@@ -121,7 +126,32 @@ void ImageBufferContextSwitcher::endDrawSourceImage(GraphicsContext& destination
 #else
     UNUSED_PARAM(colorSpace);
 #endif
-    destinationContext.drawFilteredImageBuffer(m_sourceImage.get(), m_sourceImageRect, Ref { *m_filter }, m_results ? *m_results : results);
+    Ref filter = *m_filter;
+    auto drawResult = [&] {
+        destinationContext.scale({ 1 / filter->filterScale().width(), 1 / filter->filterScale().height() });
+        destinationContext.drawImageBuffer(*m_lastResult, m_lastResultRect);
+        destinationContext.scale(filter->filterScale());
+    };
+    if (m_reuseResult && m_lastResult) {
+        drawResult();
+        return;
+    }
+    // Painted directly (not recorded), the result is kept for the next time
+    // (GraphicsContext::drawFilteredImageBuffer's steps).
+    if (destinationContext.hasPlatformContext() && !m_results) {
+        m_lastResult = nullptr;
+        auto result = filter->apply(m_sourceImage.get(), m_sourceImageRect, results);
+        if (!result)
+            return;
+        m_lastResult = filter->filterResultBuffer(*result);
+        if (!m_lastResult)
+            return;
+        m_lastResultRect = result->absoluteImageRect();
+        drawResult();
+        return;
+    }
+    m_lastResult = nullptr;
+    destinationContext.drawFilteredImageBuffer(m_sourceImage.get(), m_sourceImageRect, filter, m_results ? *m_results : results);
 }
 
 } // namespace WebCore

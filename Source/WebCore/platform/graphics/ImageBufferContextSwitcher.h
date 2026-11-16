@@ -51,10 +51,18 @@ private:
 
     FloatRect enclosingDevicePixelRect(const GraphicsContext&, const FloatRect&) const;
 
+    bool canReuseResult() const override { return !!m_lastResult; }
+    void setReuseResult(bool reuse) override { m_reuseResult = reuse; }
+
     const RefPtr<ImageBuffer> m_sourceImage;
     FloatRect m_sourceImageRect;
 
     FilterResults* m_results { nullptr };
+
+    // The last filtered result, drawn again while m_reuseResult.
+    RefPtr<ImageBuffer> m_lastResult;
+    FloatRect m_lastResultRect;
+    bool m_reuseResult { false };
 };
 
 } // namespace WebCore

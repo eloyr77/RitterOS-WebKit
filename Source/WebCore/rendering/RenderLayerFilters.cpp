@@ -239,8 +239,22 @@ GraphicsContext* RenderLayerFilters::beginFilterEffect(RenderElement& renderer, 
         return nullptr;
 
     Ref filter = *m_filter;
+    // Nothing inside the layer was repainted since its source was painted
+    // (with a filter that moves pixels, every repaint inside comes here as
+    // the dirty source rect), the filter and its region are the same and so
+    // is the kind of painting: the last result is still right. Painted
+    // without compositing, a layer is painted again whenever something under
+    // or over it changes (a video's picture beside a blurred layer, each
+    // picture); the source is then kept and the result drawn again.
+    bool reuseResult = !usesSVGUserSpace && !hasUpdatedBackingStore && m_targetSwitcher && hasSourceImage()
+        && filter->hasFilterThatMovesPixels() && layerRepaintRect.isEmpty()
+        && !renderer.style().filter().hasReferenceFilter() && paintBehavior == m_lastPaintBehavior
+        && m_targetSwitcher->canReuseResult();
+    m_lastPaintBehavior = paintBehavior;
+    if (reuseResult)
+        m_repaintRect = { };
     // Like the legacy engine, paint the whole SVG source graphic, so the result does not depend on the dirty rect.
-    if (usesSVGUserSpace)
+    else if (usesSVGUserSpace)
         m_repaintRect = filterRegion;
     else if (!filter->hasFilterThatMovesPixels())
         m_repaintRect = dirtyRect;
@@ -278,6 +292,7 @@ GraphicsContext* RenderLayerFilters::beginFilterEffect(RenderElement& renderer, 
     if (!m_targetSwitcher)
         return nullptr;
 
+    m_targetSwitcher->setReuseResult(reuseResult);
     m_targetSwitcher->beginClipAndDrawSourceImage(context, m_repaintRect, clipRect, applyAdditionalDestinationClip);
 
     return m_targetSwitcher->drawingContext(context);

@@ -53,6 +53,14 @@ public:
     virtual void beginDrawSourceImage(GraphicsContext& destinationContext, float opacity = 1.f) = 0;
     virtual void endDrawSourceImage(GraphicsContext& destinationContext, const ColorSpace&) = 0;
 
+    // A switcher that keeps its last filtered result can draw it again instead
+    // of painting the source and applying the filter (the caller knows the
+    // source did not change): RenderLayerFilters, for painting without
+    // compositing, where a layer is painted again whenever anything under or
+    // over it changes.
+    virtual bool canReuseResult() const { return false; }
+    virtual void setReuseResult(bool) { }
+
 protected:
     explicit GraphicsContextSwitcher(RefPtr<Filter>&&);
 

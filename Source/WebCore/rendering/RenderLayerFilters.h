@@ -98,6 +98,7 @@ private:
 
     RefPtr<CSSFilterRenderer> m_filter;
     std::unique_ptr<GraphicsContextSwitcher> m_targetSwitcher;
+    OptionSet<PaintBehavior> m_lastPaintBehavior;
 };
 
 } // namespace WebCore
