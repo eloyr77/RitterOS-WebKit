@@ -136,7 +136,11 @@ Ref<MediaPipelineRitterOS> MediaPipelineRitterOS::create()
     return pipeline;
 }
 
-MediaPipelineRitterOS::~MediaPipelineRitterOS() = default;
+MediaPipelineRitterOS::~MediaPipelineRitterOS()
+{
+    Locker locker { m_naturalLock };
+    sws_freeContext(m_naturalScaler);
+}
 
 void MediaPipelineRitterOS::stop()
 {
@@ -478,6 +482,31 @@ RefPtr<NativeImage> MediaPipelineRitterOS::currentImage() const
     return m_current.image;
 }
 
+void MediaPipelineRitterOS::setDisplaySize(IntSize size)
+{
+    Locker locker { m_lock };
+    m_displaySize = size;
+}
+
+static RefPtr<NativeImage> convertPicture(AVFrame*, SwsContext*&, IntSize);
+
+RefPtr<NativeImage> MediaPipelineRitterOS::currentNaturalImage()
+{
+    Picture current;
+    {
+        Locker locker { m_lock };
+        current = m_current;
+    }
+    if (!current.image || !current.frame || current.image->size() == IntSize(current.frame->width, current.frame->height))
+        return current.image;
+    Locker locker { m_naturalLock };
+    if (m_naturalFrame != current.frame) {
+        m_naturalImage = convertPicture(current.frame.get(), m_naturalScaler, { });
+        m_naturalFrame = current.frame;
+    }
+    return m_naturalImage;
+}
+
 bool MediaPipelineRitterOS::hasFirstImage() const
 {
     Locker locker { m_lock };
@@ -536,12 +565,17 @@ static void fillPacket(AVPacket* packet, const MediaPacketRitterOS& source)
         packet->flags |= AV_PKT_FLAG_DISCARD;
 }
 
-static RefPtr<NativeImage> convertPicture(AVFrame* frame, SwsContext*& scaler)
+// The decoded picture in BGRA at size (empty: its own), converted and
+// scaled in one pass.
+static RefPtr<NativeImage> convertPicture(AVFrame* frame, SwsContext*& scaler, IntSize size)
 {
-    int width = frame->width, height = frame->height;
-    if (width <= 0 || height <= 0)
+    if (frame->width <= 0 || frame->height <= 0)
         return nullptr;
-    scaler = sws_getCachedContext(scaler, width, height, static_cast<AVPixelFormat>(frame->format), width, height,
+    // (at most a 4K screen's pixels: a page may make a video huge)
+    if (size.isEmpty() || size.unclampedArea() > 3840 * 2160)
+        size = { frame->width, frame->height };
+    int width = size.width(), height = size.height();
+    scaler = sws_getCachedContext(scaler, frame->width, frame->height, static_cast<AVPixelFormat>(frame->format), width, height,
         AV_PIX_FMT_BGRA, SWS_BILINEAR, nullptr, nullptr, nullptr);
     if (!scaler)
         return nullptr;
@@ -549,7 +583,7 @@ static RefPtr<NativeImage> convertPicture(AVFrame* frame, SwsContext*& scaler)
     auto* pixels = static_cast<uint8_t*>(fastMalloc(stride * height));
     uint8_t* planes[4] = { pixels, nullptr, nullptr, nullptr };
     int strides[4] = { static_cast<int>(stride), 0, 0, 0 };
-    sws_scale(scaler, frame->data, frame->linesize, 0, height, planes, strides);
+    sws_scale(scaler, frame->data, frame->linesize, 0, frame->height, planes, strides);
     auto info = SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kOpaque_SkAlphaType);
     SkPixmap pixmap(info, pixels, stride);
     auto image = SkImages::RasterFromPixmap(pixmap, [](const void* pixels, void*) {
@@ -575,6 +609,7 @@ void MediaPipelineRitterOS::videoThreadMain()
     while (true) {
         std::optional<MediaPacketRitterOS> input;
         MediaTime flushTime;
+        IntSize displaySize;
         {
             Locker locker { m_lock };
             while (!m_stopping && generation == m_videoGeneration && m_videoPackets.isEmpty()
@@ -594,6 +629,7 @@ void MediaPipelineRitterOS::videoThreadMain()
             } else if (!m_videoInputEnded || m_videoDecodingEnded)
                 continue;
             flushTime = m_flushTime;
+            displaySize = m_displaySize;
             m_condition.notifyAll();
         }
         wakeMainThread(); // (room for more packets)
@@ -627,7 +663,10 @@ void MediaPipelineRitterOS::videoThreadMain()
             auto time = fromMicroseconds(frame->best_effort_timestamp);
             auto frameEnd = time + fromMicroseconds(frame->duration > 0 ? frame->duration : 0);
             bool beforeSeek = flushTime.isValid() && time.isValid() && frameEnd < flushTime;
-            RefPtr<NativeImage> image = beforeSeek ? nullptr : convertPicture(frame, scaler);
+            RefPtr<NativeImage> image = beforeSeek ? nullptr : convertPicture(frame, scaler, displaySize);
+            std::shared_ptr<AVFrame> decoded;
+            if (image)
+                decoded = { av_frame_clone(frame), [](AVFrame* kept) { av_frame_free(&kept); } };
             av_frame_unref(frame);
             Locker locker { m_lock };
             if (generation != m_videoGeneration || m_stopping)
@@ -636,7 +675,7 @@ void MediaPipelineRitterOS::videoThreadMain()
             if (!image)
                 continue;
             bool wasEmpty = m_pictures.isEmpty();
-            m_pictures.append({ time, WTF::move(image) });
+            m_pictures.append({ time, WTF::move(image), WTF::move(decoded) });
             m_lastQueuedVideoTime = time;
             if (wasEmpty)
                 wakeMainThread(); // (posts to the main thread; takes no lock here)

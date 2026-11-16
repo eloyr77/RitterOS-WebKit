@@ -4,7 +4,10 @@
  * Extensions' SourceBuffers), pictures and sound out.
  *
  *  - a video thread decodes (FFmpeg) and converts each picture to BGRA
- *    (swscale) into a NativeImage, a few pictures ahead;
+ *    (swscale) into a NativeImage, a few pictures ahead, at the size the
+ *    page shows it at in the screen's pixels (setDisplaySize: the page's
+ *    paint then copies it as it is; stretched there, by Skia on the main
+ *    thread, a full-screen 720p video took 15 ms a picture on the Acer);
  *  - an audio thread decodes, resamples to the sound device's format
  *    (48 kHz, 16-bit, stereo) and writes it, paced to the clock;
  *  - the clock is the computer's monotonic clock (playing: the time of the
@@ -24,7 +27,9 @@
 
 #if ENABLE(VIDEO) && PLATFORM(RITTEROS)
 
+#include "IntSize.h"
 #include "NativeImage.h"
+#include <memory>
 #include <wtf/Condition.h>
 #include <wtf/Deque.h>
 #include <wtf/Lock.h>
@@ -35,7 +40,9 @@
 #include <wtf/Vector.h>
 
 struct AVCodecParameters;
+struct AVFrame;
 struct AVPacket;
+struct SwsContext;
 
 namespace WebCore {
 
@@ -128,6 +135,14 @@ public:
     // shown, since the last call (a line to standard error).
     void reportStatistics();
     RefPtr<NativeImage> currentImage() const;
+    // On the main thread (the page's paint): the size the picture covers on
+    // the screen, in its pixels; the pictures converted from then on have
+    // it (empty: the video's own size).
+    void setDisplaySize(IntSize);
+    // The current picture at the video's own size (canvas's drawImage,
+    // which takes the video's size for its source), converted again from
+    // its decoded frame when it was made at another size.
+    RefPtr<NativeImage> currentNaturalImage();
     bool hasFirstImage() const;
     MediaTime lastQueuedVideoTime() const;
 
@@ -140,6 +155,7 @@ private:
     struct Picture {
         MediaTime time;
         RefPtr<NativeImage> image;
+        std::shared_ptr<AVFrame> frame; // (decoded, kept for currentNaturalImage)
     };
 
     void videoThreadMain();
@@ -189,6 +205,12 @@ private:
 
     Deque<Picture> m_pictures WTF_GUARDED_BY_LOCK(m_lock);
     Picture m_current WTF_GUARDED_BY_LOCK(m_lock);
+    IntSize m_displaySize WTF_GUARDED_BY_LOCK(m_lock);
+    // currentNaturalImage's: the last one made and its converter.
+    Lock m_naturalLock;
+    std::shared_ptr<AVFrame> m_naturalFrame WTF_GUARDED_BY_LOCK(m_naturalLock);
+    RefPtr<NativeImage> m_naturalImage WTF_GUARDED_BY_LOCK(m_naturalLock);
+    SwsContext* m_naturalScaler WTF_GUARDED_BY_LOCK(m_naturalLock) { nullptr };
     bool m_hasFirstImage WTF_GUARDED_BY_LOCK(m_lock) { false };
     MediaTime m_lastQueuedVideoTime WTF_GUARDED_BY_LOCK(m_lock);
     bool m_audioStarved WTF_GUARDED_BY_LOCK(m_lock) { true };

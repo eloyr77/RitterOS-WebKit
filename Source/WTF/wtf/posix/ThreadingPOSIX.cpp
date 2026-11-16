@@ -464,6 +464,10 @@ void Thread::initializeCurrentThreadInternal(const char* threadName)
 {
 #if HAVE(PTHREAD_SETNAME_NP)
     pthread_setname_np(normalizeThreadName(threadName));
+#elif OS(RITTEROS)
+    // (RitterOS: the name `threads` lists; without it a thread has its
+    // program's name.)
+    pthread_setname_np(pthread_self(), normalizeThreadName(threadName));
 #elif OS(HAIKU)
     rename_thread(find_thread(nullptr), normalizeThreadName(threadName));
 #elif OS(LINUX)

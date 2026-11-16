@@ -952,6 +952,12 @@ unsigned long long MediaPlayerPrivateRitterOS::totalBytes() const
     return m_source->totalSize().value_or(0);
 }
 
+// The picture covers rect; where the page is only moved and scaled (no
+// rotation or skew), that is a rectangle of the screen's pixels: the
+// pipeline converts the next pictures to its size, and a picture of that
+// size is copied there as it is, in the screen's pixels (no filtering:
+// Skia's plain copy). Another size (the first pictures after a resize,
+// a transformed page) is stretched as before.
 void MediaPlayerPrivateRitterOS::paint(GraphicsContext& context, const FloatRect& rect)
 {
     if (context.paintingDisabled())
@@ -959,12 +965,26 @@ void MediaPlayerPrivateRitterOS::paint(GraphicsContext& context, const FloatRect
     RefPtr image = m_pipeline->currentImage();
     if (!image)
         return;
+    auto ctm = context.getCTM(GraphicsContext::DefinitelyIncludeDeviceScale);
+    if (!ctm.b() && !ctm.c() && ctm.a() > 0 && ctm.d() > 0) {
+        auto onScreen = roundedIntRect(ctm.mapRect(rect));
+        if (!onScreen.isEmpty()) {
+            m_pipeline->setDisplaySize(onScreen.size());
+            if (image->size() == onScreen.size()) {
+                GraphicsContextStateSaver saver(context);
+                context.setCTM({ });
+                context.drawNativeImage(*image, FloatRect(onScreen), FloatRect({ }, image->size()), { InterpolationQuality::DoNotInterpolate });
+                return;
+            }
+        }
+    }
     context.drawNativeImage(*image, rect, FloatRect({ }, image->size()));
 }
 
+// (canvas's drawImage: the video's own size, which it takes for the source)
 RefPtr<NativeImage> MediaPlayerPrivateRitterOS::nativeImageForCurrentTime()
 {
-    return m_pipeline->currentImage();
+    return m_pipeline->currentNaturalImage();
 }
 
 ColorSpace MediaPlayerPrivateRitterOS::colorSpace()
