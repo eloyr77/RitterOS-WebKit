@@ -49,12 +49,17 @@ public:
     // Functions called by PageClientImpl
     void setViewNeedsDisplay(const WebCore::Region&);
 #if ENABLE(FULLSCREEN_API)
-    bool isFullScreen() { return false; }
-    void closeFullScreenManager() { }
-    void enterFullScreen(CompletionHandler<void(bool)>&& completionHandler) { completionHandler(false); }
-    void exitFullScreen(CompletionHandler<void()>&& completionHandler) { completionHandler(); }
-    void beganEnterFullScreen(const WebCore::IntRect&, const WebCore::IntRect&, CompletionHandler<void(bool)>&& completionHandler) { completionHandler(false); }
-    void beganExitFullScreen(const WebCore::IntRect&, const WebCore::IntRect&, CompletionHandler<void()>&& completionHandler) { completionHandler(); }
+    // The Fullscreen API (as PlayStationWebView): each step goes to the
+    // view's client, which shows the view alone over the whole screen and
+    // gives it that size; requestExitFullScreen is the embedder's way out
+    // (Escape), as the page's document.exitFullscreen() is the page's.
+    bool isFullScreen() { return m_isFullScreen; }
+    void requestExitFullScreen();
+    void closeFullScreenManager();
+    void enterFullScreen(CompletionHandler<void(bool)>&&);
+    void exitFullScreen(CompletionHandler<void()>&&);
+    void beganEnterFullScreen(const WebCore::IntRect& initialFrame, const WebCore::IntRect& finalFrame, CompletionHandler<void(bool)>&&);
+    void beganExitFullScreen(const WebCore::IntRect& initialFrame, const WebCore::IntRect& finalFrame, CompletionHandler<void()>&&);
 #endif
     void setCursor(const WebCore::Cursor&);
 
@@ -66,6 +71,9 @@ private:
     const RefPtr<WebPageProxy> m_page;
     OptionSet<WebCore::ActivityState> m_viewStateFlags;
     WebCore::IntSize m_viewSize;
+#if ENABLE(FULLSCREEN_API)
+    bool m_isFullScreen { false };
+#endif
 };
 
 } // namespace WebKit

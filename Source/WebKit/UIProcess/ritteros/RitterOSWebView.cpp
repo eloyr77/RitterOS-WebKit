@@ -20,6 +20,9 @@
 #include "APIPageConfiguration.h"
 #include "DrawingAreaProxyCoordinatedGraphics.h"
 #include "WebProcessPool.h"
+#if ENABLE(FULLSCREEN_API)
+#include "WebFullScreenManagerProxy.h"
+#endif
 #include <WebCore/Region.h>
 #include <skia/core/SkCanvas.h>
 #include <skia/core/SkColorSpace.h>
@@ -111,6 +114,58 @@ void RitterOSWebView::setViewNeedsDisplay(const WebCore::Region& region)
     if (m_client)
         m_client->setViewNeedsDisplay(*this, region);
 }
+
+#if ENABLE(FULLSCREEN_API)
+// (PlayStationWebView's, the client told at each step)
+void RitterOSWebView::requestExitFullScreen()
+{
+    if (isFullScreen())
+        m_page->fullScreenManager()->requestExitFullScreen();
+}
+
+void RitterOSWebView::closeFullScreenManager()
+{
+    if (m_client && isFullScreen())
+        m_client->closeFullScreen(*this);
+    m_isFullScreen = false;
+}
+
+void RitterOSWebView::enterFullScreen(CompletionHandler<void(bool)>&& completionHandler)
+{
+    if (!m_client || isFullScreen())
+        return completionHandler(false);
+    m_client->enterFullScreen(*this, [this, protectedThis = Ref { *this }, completionHandler = WTF::move(completionHandler)](bool entered) mutable {
+        m_isFullScreen = entered;
+        completionHandler(entered);
+    });
+}
+
+void RitterOSWebView::exitFullScreen(CompletionHandler<void()>&& completionHandler)
+{
+    if (m_client && isFullScreen())
+        m_client->exitFullScreen(*this);
+    completionHandler();
+}
+
+void RitterOSWebView::beganEnterFullScreen(const WebCore::IntRect& initialFrame, const WebCore::IntRect& finalFrame, CompletionHandler<void(bool)>&& completionHandler)
+{
+    if (!m_client)
+        return completionHandler(false);
+    m_client->beganEnterFullScreen(*this, initialFrame, finalFrame, WTF::move(completionHandler));
+}
+
+void RitterOSWebView::beganExitFullScreen(const WebCore::IntRect& initialFrame, const WebCore::IntRect& finalFrame, CompletionHandler<void()>&& completionHandler)
+{
+    if (!m_client) {
+        m_isFullScreen = false;
+        return completionHandler();
+    }
+    m_client->beganExitFullScreen(*this, initialFrame, finalFrame, [this, protectedThis = Ref { *this }, completionHandler = WTF::move(completionHandler)] mutable {
+        m_isFullScreen = false;
+        completionHandler();
+    });
+}
+#endif
 
 void RitterOSWebView::setCursor(const WebCore::Cursor& cursor)
 {

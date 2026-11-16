@@ -23,16 +23,6 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 # __ritteros__. BUILDING_RITTEROS__ gives PLATFORM(RITTEROS) once
 # wtf/PlatformLegacy.h maps it (REPORT.md, patch W1).
 add_definitions(-D__ritteros__=1 -DBUILDING_RITTEROS__=1)
-# (Until RitterOS's <string.h> declares strcasecmp and strncasecmp, as glibc's
-# and the BSDs' do: Compass's docs/os-requests.md, 1.)
-add_compile_options("SHELL:-include strings.h")
-
-# The SDK's toolchain links with ld.lld itself, not through clang: CMake's
-# LINKER: options go to it as they are, not behind -Xlinker.
-foreach (_lang C CXX)
-    set(CMAKE_${_lang}_LINKER_WRAPPER_FLAG "")
-    set(CMAKE_${_lang}_LINKER_WRAPPER_FLAG_SEP "")
-endforeach ()
 # Libraries and programs without debug sections (libWebKit is 114 MB with
 # them); the symbol tables stay, for backtraces (lldb "image lookup -a").
 add_link_options(--strip-debug)
@@ -133,7 +123,11 @@ WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_GEOLOCATION PRIVATE ON)  # no position s
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_NOTIFICATIONS PRIVATE ON) # permission is refused (no notification service)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_IMAGE_DIFF PRIVATE OFF)  # default ON (Tools/ImageDiff)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_CONTEXT_MENUS PRIVATE OFF) # default ON; needs a WebContextMenuProxy (M2)
-WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_FULLSCREEN_API PRIVATE OFF) # default ON; needs view-client plumbing (M2)
+# The Fullscreen API: the view client's fullscreen steps (RitterOSWebView,
+# WKView.cpp); Compass gives the page the whole screen (window_fullscreen).
+# A video's own fullscreen button goes through it too.
+WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_FULLSCREEN_API PRIVATE ON)
+WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_VIDEO_USES_ELEMENT_FULLSCREEN PRIVATE ON)
 
 # Milestone 1: everything that is not "load and render http(s) pages in a window".
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_GPU_PROCESS PRIVATE OFF)

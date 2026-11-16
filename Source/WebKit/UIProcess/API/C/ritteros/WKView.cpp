@@ -82,9 +82,64 @@ void WKViewSetViewClient(WKViewRef view, const WKViewClientBase* client)
             if (m_client.setCursor)
                 m_client.setCursor(toAPI(&view), toWKCursorType(cursor), m_client.base.clientInfo);
         }
+
+        // The Fullscreen API (PlayStation's WKView.cpp): each callback is
+        // the embedder's step, done when it returns.
+        void enterFullScreen(RitterOSWebView& view, CompletionHandler<void(bool)>&& completionHandler) final
+        {
+            if (!m_client.enterFullScreen)
+                return completionHandler(false);
+            m_client.enterFullScreen(toAPI(&view), m_client.base.clientInfo);
+            completionHandler(true);
+        }
+
+        void exitFullScreen(RitterOSWebView& view) final
+        {
+            if (m_client.exitFullScreen)
+                m_client.exitFullScreen(toAPI(&view), m_client.base.clientInfo);
+        }
+
+        void closeFullScreen(RitterOSWebView& view) final
+        {
+            if (m_client.closeFullScreen)
+                m_client.closeFullScreen(toAPI(&view), m_client.base.clientInfo);
+        }
+
+        void beganEnterFullScreen(RitterOSWebView& view, const WebCore::IntRect& initialFrame, const WebCore::IntRect& finalFrame, CompletionHandler<void(bool)>&& completionHandler) final
+        {
+            if (m_client.beganEnterFullScreen)
+                m_client.beganEnterFullScreen(toAPI(&view), toAPI(initialFrame), toAPI(finalFrame), m_client.base.clientInfo);
+            completionHandler(true);
+        }
+
+        void beganExitFullScreen(RitterOSWebView& view, const WebCore::IntRect& initialFrame, const WebCore::IntRect& finalFrame, CompletionHandler<void()>&& completionHandler) final
+        {
+            if (m_client.beganExitFullScreen)
+                m_client.beganExitFullScreen(toAPI(&view), toAPI(initialFrame), toAPI(finalFrame), m_client.base.clientInfo);
+            completionHandler();
+        }
     };
 
     toImpl(view)->setClient(makeUnique<ViewClient>(client));
+}
+
+void WKViewRequestExitFullScreen(WKViewRef view)
+{
+#if ENABLE(FULLSCREEN_API)
+    toImpl(view)->requestExitFullScreen();
+#else
+    UNUSED_PARAM(view);
+#endif
+}
+
+bool WKViewIsFullScreen(WKViewRef view)
+{
+#if ENABLE(FULLSCREEN_API)
+    return toImpl(view)->isFullScreen();
+#else
+    UNUSED_PARAM(view);
+    return false;
+#endif
 }
 
 WKPageRef WKViewGetPage(WKViewRef view)

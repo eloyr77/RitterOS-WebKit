@@ -51,6 +51,11 @@
 #include "UserAgentStyleSheets.h"
 #include <wtf/text/Base64.h>
 
+#if PLATFORM(RITTEROS)
+#include "BundleRitterOS.h"
+#include <wtf/FileSystem.h>
+#endif
+
 #if PLATFORM(WIN)
 #include "WebCoreBundleWin.h"
 #include <wtf/FileSystem.h>
@@ -237,6 +242,12 @@ RefPtr<FragmentedSharedBuffer> RenderThemeAdwaita::mediaControlsImageDataForIcon
     if (!data)
         return nullptr;
     return SharedBuffer::create(WTF::move(*data));
+#elif PLATFORM(RITTEROS)
+    // (the app's bundle: share/media-controls, Modules/modern-media-controls/images/adwaita)
+    auto data = FileSystem::readEntireFile(bundleFilePath("media-controls"_s, makeString(iconName, '.', iconType)));
+    if (!data)
+        return nullptr;
+    return SharedBuffer::create(WTF::move(*data));
 #else
     return nullptr;
 #endif
@@ -253,6 +264,11 @@ String RenderThemeAdwaita::mediaControlsBase64StringForIconNameAndType(const Str
 #elif PLATFORM(WIN)
     auto path = webKitBundlePath(iconName, iconType, "media-controls"_s);
     auto data = FileSystem::readEntireFile(path);
+    if (!data)
+        return { };
+    return base64EncodeToString(data->span());
+#elif PLATFORM(RITTEROS)
+    auto data = FileSystem::readEntireFile(bundleFilePath("media-controls"_s, makeString(iconName, '.', iconType)));
     if (!data)
         return { };
     return base64EncodeToString(data->span());

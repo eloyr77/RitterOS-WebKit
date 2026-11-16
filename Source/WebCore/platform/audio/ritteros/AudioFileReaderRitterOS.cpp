@@ -27,6 +27,7 @@
 
 #include "AudioBus.h"
 #include "AudioChannel.h"
+#include "BundleRitterOS.h"
 #include <wtf/FileSystem.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/MakeString.h>
@@ -40,8 +41,6 @@ extern "C" {
 #include <libswresample/swresample.h>
 }
 
-#include <dlfcn.h>
-#include <sys/auxv.h>
 #include <stdio.h>
 
 namespace WebCore {
@@ -221,25 +220,9 @@ RefPtr<AudioBus> createBusFromInMemoryAudioFile(std::span<const uint8_t> data, b
 
 // Web Audio's sounds (the HRTF database's impulse responses, "Composite"):
 // WebCore/platform/audio/resources/NAME.wav in the bundle's share/webaudio.
-// The bundle is the program's folder (Compass and WebKit's helper programs
-// are at its top: the kernel gives the program's path, AT_EXECFN), else
-// the folder above libWebKit's lib/ (dladdr names the file without its
-// folder when the library came through the program's run path).
-static String bundleDirectory()
-{
-    if (auto* program = reinterpret_cast<const char*>(getauxval(AT_EXECFN)); program && *program == '/')
-        return FileSystem::parentPath(String::fromUTF8(program));
-    Dl_info info { };
-    if (dladdr(reinterpret_cast<void*>(&createBusFromInMemoryAudioFile), &info) && info.dli_fname && *info.dli_fname == '/')
-        return FileSystem::parentPath(FileSystem::parentPath(String::fromUTF8(info.dli_fname)));
-    return { };
-}
-
 RefPtr<AudioBus> AudioBus::loadPlatformResource(StringView name, float sampleRate)
 {
-    String file = makeString(name, ".wav"_s);
-    std::array<StringView, 3> components { "share"_s, "webaudio"_s, file };
-    String path = FileSystem::pathByAppendingComponents(bundleDirectory(), components);
+    String path = bundleFilePath("webaudio"_s, makeString(name, ".wav"_s));
     auto contents = FileSystem::readEntireFile(path);
     RefPtr<AudioBus> bus = contents ? createBusFromInMemoryAudioFile(contents->span(), false, sampleRate) : nullptr;
     if (!bus) // (3D sound, PannerNode's HRTF, is silent without it)

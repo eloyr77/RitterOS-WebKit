@@ -107,6 +107,7 @@ list(APPEND WebCore_SOURCES
                                                               # but setCACertPath("/system/etc/ssl/cert.pem")
     platform/network/ritteros/NetworkStateNotifierRitterOS.cpp # platform/network/playstation/NetworkStateNotifierPlayStation.cpp
 
+    platform/ritteros/BundleRitterOS.cpp                      # files in the app's bundle (share/FOLDER): Web Audio's sounds, the media controls' icons
     platform/ritteros/MIMETypeRegistryRitterOS.cpp            # platform/playstation/MIMETypeRegistryPlayStation.cpp (no xdgmime)
     platform/ritteros/PasteboardRitterOS.cpp                  # platform/libwpe/PasteboardLibWPE.cpp, stubbed (M1: no clipboard)
     platform/ritteros/PlatformKeyboardEventRitterOS.cpp       # disambiguateKeyDownEvent(); platform/libwpe/PlatformKeyboardEventLibWPE.cpp:1330

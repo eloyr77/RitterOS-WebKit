@@ -36,6 +36,13 @@ WK_EXPORT WKViewRef WKViewCreate(WKPageConfigurationRef);
 WK_EXPORT void WKViewSetViewClient(WKViewRef, const WKViewClientBase*);
 WK_EXPORT WKPageRef WKViewGetPage(WKViewRef);
 
+// The Fullscreen API: the page asks through the view client's
+// enterFullScreen (show the view alone over the whole screen, at that size)
+// and exitFullScreen (back); WKViewRequestExitFullScreen is the embedder's
+// way out (Escape).
+WK_EXPORT void WKViewRequestExitFullScreen(WKViewRef);
+WK_EXPORT bool WKViewIsFullScreen(WKViewRef);
+
 WK_EXPORT void WKViewSetSize(WKViewRef, WKSize);
 WK_EXPORT void WKViewSetFocus(WKViewRef, bool);
 WK_EXPORT void WKViewSetActive(WKViewRef, bool);

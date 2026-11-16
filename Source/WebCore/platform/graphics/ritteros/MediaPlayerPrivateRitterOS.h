@@ -85,6 +85,9 @@ private:
     bool paused() const final { return m_paused; }
     FloatSize naturalSize() const final { return m_naturalSize; }
     bool hasVideo() const final { return m_hasVideo; }
+    // In fullscreen a video is its element's (VIDEO_USES_ELEMENT_FULLSCREEN),
+    // drawn as anywhere else, larger.
+    bool supportsFullscreen() const final { return true; }
     bool hasAudio() const final { return m_hasAudio; }
     void setPageIsVisible(bool) final { }
     MediaTime duration() const final;

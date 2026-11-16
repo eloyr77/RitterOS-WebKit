@@ -47,8 +47,7 @@ public:
 };
 
 // WTF/wtf/ritteros/ProfilerRitterOS.cpp: samples this thread with
-// COMPASS_PROFILE set (from here: RitterOS sets the environment only after
-// the constructors have run).
+// COMPASS_PROFILE set (the web process's main thread, from its start).
 extern "C" void ritterosStartProfiler();
 
 int WebProcessMain(int argc, char** argv)
